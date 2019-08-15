@@ -44,13 +44,13 @@ public:
 #endif
   }
 
+  al::OpenVRWrapper mOpenVR;
+  std::unique_ptr<Graphics> mGraphics;
+
 private:
   std::function<void(Graphics &)> drawSceneFunc = [](Graphics &g) {
     g.clear(1.0, 0, 0.0);
   };
-
-  al::OpenVRWrapper mOpenVR;
-  std::unique_ptr<Graphics> mGraphics;
 };
 
 } // namespace al
