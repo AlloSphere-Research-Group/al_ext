@@ -1,25 +1,19 @@
 #ifndef OPENVRDOMAIN_H
 #define OPENVRDOMAIN_H
 
-#include <iostream>
 #include <functional>
+#include <iostream>
 
-#include "al_ComputationDomain.hpp"
-#include "al_OpenGLGraphicsDomain.hpp"
+#include "al/app/al_App.hpp"
+#include "al/app/al_OpenGLGraphicsDomain.hpp"
 
- // ----------------------------------------------------------------
-// The AL_EXT_OPENVR macro is set if OpenVR is found.
-#ifdef AL_EXT_OPENVR
 #include "al_ext/openvr/al_OpenVRWrapper.hpp"
-#endif
 
 namespace al {
 
-
-class OpenVRDomain: public SynchronousDomain {
+class OpenVRDomain : public SynchronousDomain {
 public:
-
-  ~OpenVRDomain() {}
+  virtual ~OpenVRDomain() {}
 
   // Domain management functions
   bool initialize(ComputationDomain *parent = nullptr) override;
@@ -30,18 +24,35 @@ public:
     drawSceneFunc = func;
   }
 
-  Graphics *g;
+  static std::shared_ptr<OpenVRDomain> enableVR(App *app) {
+#ifdef AL_EXT_OPENVR
+    return app->graphicsDomain()->newSubDomain<OpenVRDomain>(true);
+#else
+    std::cout << "OpenVR support not available. Ignoring enableVR()"
+              << std::endl;
+    return nullptr;
+#endif
+  }
+
+  static void disableVR(App *app, std::shared_ptr<OpenVRDomain> openVRDomain) {
+#ifdef AL_EXT_OPENVR
+    assert(openVRDomain);
+    app->graphicsDomain()->removeSubDomain(openVRDomain);
+#else
+    std::cout << "OpenVR support not available. Ignoring enableVR()"
+              << std::endl;
+#endif
+  }
 
 private:
+  std::function<void(Graphics &)> drawSceneFunc = [](Graphics &g) {
+    g.clear(1.0, 0, 0.0);
+  };
 
-  std::function<void(Graphics &)> drawSceneFunc = [](Graphics &g){ g.clear(0, 0, 1.0); };
-
-#ifdef AL_EXT_OPENVR
-    al::OpenVRWrapper mOpenVR;
-#endif
+  al::OpenVRWrapper mOpenVR;
+  std::unique_ptr<Graphics> mGraphics;
 };
 
-}
-
+} // namespace al
 
 #endif // OPENVRDOMAIN_H

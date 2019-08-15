@@ -10,22 +10,22 @@ Graham Wakefield 2011
 
 //#include "al/core.hpp"
 #include "al/app/al_App.hpp"
-#include "assets3d/al_Asset.hpp"
+#include "al_ext/assets3d/al_Asset.hpp"
 //#include "module/img/loadImage.hpp"
 #include <algorithm> // max
+#include <cstdint>   // uint8_t
 #include <vector>
-#include <cstdint> // uint8_t
 
 using namespace al;
 using namespace std;
 
 struct MyApp : App {
 
-  Scene* ascene {nullptr};
+  Scene *ascene{nullptr};
   Vec3f scene_min, scene_max, scene_center;
   Texture tex;
   vector<Mesh> meshes;
-  float a = 0.f;  // current rotation angle
+  float a = 0.f; // current rotation angle
 
   void onCreate() {
     // load in a "scene"
@@ -40,30 +40,31 @@ struct MyApp : App {
     scene_center = (scene_min + scene_max) / 2.f;
     ascene->print();
 
-//    auto filename = searchpaths.find("hubble.jpg").filepath();
+    //    auto filename = searchpaths.find("hubble.jpg").filepath();
 
-//    auto imageData = imgModule::loadImage(filename);
-//    if (imageData.data.size() == 0) {
-//      cout << "failed to load image" << endl;
-//    }
-//    cout << "loaded image size: " << imageData.width << ", " << imageData.height << endl;
+    //    auto imageData = imgModule::loadImage(filename);
+    //    if (imageData.data.size() == 0) {
+    //      cout << "failed to load image" << endl;
+    //    }
+    //    cout << "loaded image size: " << imageData.width << ", " <<
+    //    imageData.height << endl;
 
-//    tex.create2D(imageData.width, imageData.height);
-//    tex.submit(imageData.data.data(), GL_RGBA, GL_UNSIGNED_BYTE);
+    //    tex.create2D(imageData.width, imageData.height);
+    //    tex.submit(imageData.data.data(), GL_RGBA, GL_UNSIGNED_BYTE);
 
     // extract meshes from scene
-	meshes.resize(ascene->meshes());
+    meshes.resize(ascene->meshes());
     for (int i = 0; i < ascene->meshes(); i += 1) {
-    	ascene->mesh(i, meshes[i]);
+      ascene->mesh(i, meshes[i]);
     }
   }
 
-  void onDraw(Graphics& g) {
+  void onDraw(Graphics &g) {
     g.clear(0.1);
 
     g.depthTesting(true);
     g.lighting(true);
-    //g.light().dir(1.f, 1.f, 2.f);
+    // g.light().dir(1.f, 1.f, 2.f);
 
     g.pushMatrix();
 
@@ -81,20 +82,19 @@ struct MyApp : App {
     // center the model
     g.translate(-scene_center);
 
-//    tex.bind(0);
-//    g.texture(); // use texture to color the mesh
+    //    tex.bind(0);
+    //    g.texture(); // use texture to color the mesh
     // draw all the meshes in the scene
-    for (auto& m : meshes) {
-    	g.draw(m);
+    for (auto &m : meshes) {
+      g.draw(m);
     }
-//    tex.unbind(0);
+    //    tex.unbind(0);
 
     g.popMatrix();
-
   }
 };
 
-int main(int argc, char* const argv[]) {
+int main(int argc, char *const argv[]) {
   MyApp app;
   app.dimensions(640, 480);
   app.start();

@@ -16,15 +16,16 @@ macro(BuildExample example_src dir name_prefix linklibs)
         CXX_STANDARD 14
         CXX_STANDARD_REQUIRED ON
 
-        RUNTIME_OUTPUT_DIRECTORY_DEBUG ${EXAMPLE_DIRECTORY}/bin
-        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${EXAMPLE_DIRECTORY}/bin
+#        RUNTIME_OUTPUT_DIRECTORY ${EXAMPLE_DIRECTORY}/bin
+#        RUNTIME_OUTPUT_DIRECTORY_DEBUG ${EXAMPLE_DIRECTORY}/bin
+#        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${EXAMPLE_DIRECTORY}/bin
         )
 
     #       message("Adding target for example: ${example_src}")
     include_directories(${ALLOCORE_INCLUDE_DIR} ${GAMMA_INCLUDE_DIRS}})
     #    message("Gamma : ${GAMMA_INCLUDE_DIRs}")
     add_dependencies(${EXAMPLE_TARGET} al Gamma)
-    target_link_libraries(${EXAMPLE_TARGET} al ${linklibs} ${OPENGL_gl_LIBRARY} ${ADDITIONAL_LIBRARIES} ${EXTERNAL_LIBRARIES})
+    target_link_libraries(${EXAMPLE_TARGET} al ${linklibs} ${OPENGL_gl_LIBRARY} ${ADDITIONAL_LIBRARIES} "${name_prefix}")
 
     get_target_property(DLLS_TO_COPY al AL_DLL_LIBRARIES)
     Copy_dlls("${EXAMPLE_DIRECTORY}/bin" "${EXAMPLE_TARGET}" "${EXTENSIONS_DLLS}")
@@ -42,7 +43,9 @@ macro(BuildExamples directory name_prefix linklibs)
         foreach(example_src ${EXAMPLE_FILES})
             list (FIND EXAMPLES_TO_IGNORE "${example_src}" _index)
             if (${_index} EQUAL -1)
-                set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin/examples/${dir}")
+                set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/examples/bin")
+                set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/examples/bin")
+                set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/examples/bin")
                 BuildExample("${example_src}" "${dir}" "${name_prefix}" "${linklibs}" )
 
             else()

@@ -19,13 +19,13 @@ ${CMAKE_CURRENT_LIST_DIR}
 )
 
 # Allolib
-add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/.." "${CMAKE_CURRENT_LIST_DIR}/build")
+#add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/.." "${CMAKE_CURRENT_LIST_DIR}/build")
 
 set(EXTENSIONS_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR})
 subdirlist(SUBDIRS "${CMAKE_CURRENT_LIST_DIR}")
 
-include_directories("${CMAKE_CURRENT_LIST_DIR}/../include")
-include_directories("${CMAKE_CURRENT_LIST_DIR}")
+#include_directories("${CMAKE_CURRENT_LIST_DIR}/../include")
+include_directories("${CMAKE_CURRENT_LIST_DIR}/..")
 
 add_custom_target(al_ext)
 
@@ -33,8 +33,11 @@ foreach(subdir ${SUBDIRS})
   if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/${subdir}/CMakeLists.txt")
     message(" * Extension: ${subdir}")
     add_subdirectory(${subdir})
-    add_dependencies(al_ext "al_${subdir}")
+    add_dependencies(al_ext al_${subdir})
+    list(APPEND AL_EXT_LIBRARIES al_${subdir})
   endif()
 endforeach()
 message("** DONE Processing extensions **")
 
+# Expose libraries to the outside
+set_target_properties(al_ext PROPERTIES AL_EXT_LIBRARIES "${AL_EXT_LIBRARIES}")
