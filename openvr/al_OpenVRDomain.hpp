@@ -26,7 +26,9 @@ public:
 
   static std::shared_ptr<OpenVRDomain> enableVR(App *app) {
 #ifdef AL_EXT_OPENVR
-    return app->graphicsDomain()->newSubDomain<OpenVRDomain>(true);
+    auto vrDomain = app->graphicsDomain()->newSubDomain<OpenVRDomain>(true);
+    vrDomain->initialize(app->graphicsDomain().get());
+    return vrDomain;
 #else
     std::cout << "OpenVR support not available. Ignoring enableVR()"
               << std::endl;

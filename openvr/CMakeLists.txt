@@ -7,6 +7,8 @@ include("../BuildExamples.cmake")
 
 
 find_library(OPENVR_LIB openvr_api
+  "${CMAKE_CURRENT_LIST_DIR}/../../../openvr-1.6.10b/lib/win64"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../../openvr-1.6.10b/lib/win64"
   "${CMAKE_CURRENT_LIST_DIR}/../../../openvr/lib/win64"
   "${CMAKE_CURRENT_LIST_DIR}/../../../../openvr/lib/win64"
   )

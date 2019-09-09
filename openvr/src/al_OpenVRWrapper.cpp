@@ -16,9 +16,13 @@ bool OpenVRWrapper::init() {
   if (vr::VR_IsHmdPresent()) {
     std::cout << "An HMD was successfully found in the system" << std::endl;
     if (vr::VR_IsRuntimeInstalled()) {
-      const char *runtime_path = vr::VR_RuntimePath();
-      std::cout << "Runtime correctly installed at '" << runtime_path << "'"
-                << std::endl;
+      char runtime_path[256];
+      uint32_t requiredSize;
+      vr::VR_GetRuntimePath(runtime_path, 255, &requiredSize);
+      if (requiredSize < 256) {
+        std::cout << "Runtime correctly installed at '" << runtime_path << "'"
+                  << std::endl;
+      }
     } else {
       std::cout << "Runtime was not found." << std::endl;
       return false;
@@ -59,8 +63,13 @@ bool OpenVRWrapper::init() {
       m_ulOverlayHandle, vr::VROverlayFlags_SendVRTouchpadEvents, true);
   vr::VROverlay()->SetOverlayFlag(
       m_ulOverlayHandle, vr::VROverlayFlags_ShowTouchPadScrollWheel, true);
-  vr::VROverlay()->SetOverlayFlag(m_ulOverlayHandle,
-                                  vr::VROverlayFlags_SendVRScrollEvents, true);
+  // vr::VROverlayFlags_SendVRScrollEvents available in 1.1.3b but not
+  // in 1.10.6b Documentation in 1.10.6b indicates that mouse events are sent
+  // automatically if  vr::VROverlayInputMethod_Mouse is set, so there seems to
+  // be no need for this any more. Untested.
+  //  vr::VROverlay()->SetOverlayFlag(m_ulOverlayHandle,
+  //                                  vr::VROverlayFlags_SendVRScrollEvents,
+  //                                  true);
 
   //    LeftController = new Controller();
   //    RightController = new Controller();

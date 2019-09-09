@@ -15,9 +15,10 @@
 #ifdef AL_EXT_OPENVR
 #include <openvr.h>
 
-// static_assert(vr::k_nSteamVRVersionMinor == 1 &&
-//                  vr::k_nSteamVRVersionMinor <= 1,
-//              "OpenVR support for version 1.1.3b and under.");
+static_assert((vr::k_nSteamVRVersionMajor == 1) &&
+                  (vr::k_nSteamVRVersionMinor >= 6) &&
+                  (vr::k_nSteamVRVersionBuild == 10),
+              "OpenVR support for version 1.10.6b and over.");
 #endif
 
 namespace al {
