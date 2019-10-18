@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cstring>
 
-#include "al/core/io/al_AudioIO.hpp"
+#include "al/io/al_AudioIO.hpp"
 
 #include "al_ext/soundfile/al_SoundfileBufferedRecord.hpp"
 
