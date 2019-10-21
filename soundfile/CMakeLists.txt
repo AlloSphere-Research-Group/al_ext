@@ -41,14 +41,16 @@ else()
 #  message("libs: ${CURRENT_EXTENSION_LIBRARIES}")
 
   # unit tests
-  add_executable(soundfileBufferedRecordTests ${CMAKE_CURRENT_LIST_DIR}/unitTests/utSoundfileBufferedRecord.cpp)
-  target_link_libraries(soundfileBufferedRecordTests al ${SPATIALAUDIO_LINK_LIBRARIES} )
-  target_include_directories(soundfileBufferedRecordTests PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/external/catch")
-  set_target_properties(soundfileBufferedRecordTests PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED ON
-    )
-  add_test(NAME soundfileBufferedRecordTests
-    COMMAND $<TARGET_FILE:soundfileBufferedRecordTests> ${TEST_ARGS})
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/catch")
+      add_executable(soundfileBufferedRecordTests ${CMAKE_CURRENT_LIST_DIR}/unitTests/utSoundfileBufferedRecord.cpp)
+      target_link_libraries(soundfileBufferedRecordTests al ${SPATIALAUDIO_LINK_LIBRARIES} )
+      target_include_directories(soundfileBufferedRecordTests PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/external/catch")
+      set_target_properties(soundfileBufferedRecordTests PROPERTIES
+          CXX_STANDARD 14
+          CXX_STANDARD_REQUIRED ON
+          )
+      add_test(NAME soundfileBufferedRecordTests
+          COMMAND $<TARGET_FILE:soundfileBufferedRecordTests> ${TEST_ARGS})
+  endif()
 
 endif(NOT SNDFILE_LIBRARY)
