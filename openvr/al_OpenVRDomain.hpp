@@ -6,13 +6,12 @@
 
 #include "al/app/al_App.hpp"
 #include "al/app/al_OpenGLGraphicsDomain.hpp"
-
 #include "al_ext/openvr/al_OpenVRWrapper.hpp"
 
 namespace al {
 
 class OpenVRDomain : public SynchronousDomain {
-public:
+ public:
   virtual ~OpenVRDomain() {}
 
   // Domain management functions
@@ -30,6 +29,7 @@ public:
     vrDomain->initialize(app->graphicsDomain().get());
     return vrDomain;
 #else
+    (void)app;
     std::cout << "OpenVR support not available. Ignoring enableVR()"
               << std::endl;
     return nullptr;
@@ -41,6 +41,7 @@ public:
     assert(openVRDomain);
     app->graphicsDomain()->removeSubDomain(openVRDomain);
 #else
+    (void)openVRDomain;
     std::cout << "OpenVR support not available. Ignoring enableVR()"
               << std::endl;
 #endif
@@ -49,12 +50,12 @@ public:
   al::OpenVRWrapper mOpenVR;
   std::unique_ptr<Graphics> mGraphics;
 
-private:
+ private:
   std::function<void(Graphics &)> drawSceneFunc = [](Graphics &g) {
     g.clear(1.0, 0, 0.0);
   };
 };
 
-} // namespace al
+}  // namespace al
 
-#endif // OPENVRDOMAIN_H
+#endif  // OPENVRDOMAIN_H

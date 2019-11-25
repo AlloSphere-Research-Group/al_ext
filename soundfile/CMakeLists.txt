@@ -2,6 +2,8 @@
 #find_library(SNDFILE_LIBRARY
 #  NAMES sndfile)
 
+include("../BuildExamples.cmake")
+
 if (NOT SNDFILE_LIBRARY)
   message("libsndfile not found. Not building soundfile extension.")
 else()
@@ -52,5 +54,9 @@ else()
       add_test(NAME soundfileBufferedRecordTests
           COMMAND $<TARGET_FILE:soundfileBufferedRecordTests> ${TEST_ARGS})
   endif()
+
+  if(BUILD_EXAMPLES)
+     BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} "")
+  endif(BUILD_EXAMPLES)
 
 endif(NOT SNDFILE_LIBRARY)

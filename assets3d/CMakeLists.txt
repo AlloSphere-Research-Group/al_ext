@@ -45,8 +45,9 @@ else()
 #  set(CURRENT_EXTENSION_DEFINITIONS -DAL_EXT_ASSETS3D)
 #  get_filename_component(ASSIMP_ROOT_DIR "${ASSIMP_LIBRARY}" DIRECTORY)
 #  set(CURRENT_EXTENSION_DLLS "${ASSIMP_ROOT_DIR}/../../bin/x64/assimp-vc140-mt.dll")
+if(BUILD_EXAMPLES)
 BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_assets3d)
-
+endif(BUILD_EXAMPLES)
 
 #  message("libs: ${CURRENT_EXTENSION_LIBRARIES}")
 

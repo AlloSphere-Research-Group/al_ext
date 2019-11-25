@@ -32,8 +32,6 @@ set_target_properties(${THIS_EXTENSION_LIBRARY_NAME} PROPERTIES
   CXX_STANDARD 14
 )
 
-BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_assets3d)
-
 if (NOT OPENVR_LIB)
   message("OpenVR not found. Not building al_openvr extension.")
 else()
@@ -49,6 +47,11 @@ else()
   target_compile_definitions(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC AL_EXT_OPENVR)
 
   target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC "${OPENVR_ROOT}/headers")
+
+
+  if(BUILD_EXAMPLES)
+    BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_assets3d)
+  endif(BUILD_EXAMPLES)
 
 #  # unit tests
 #  add_executable(soundfileBufferedRecordTests ${CMAKE_CURRENT_LIST_DIR}/unitTests/utSoundfileBufferedRecord.cpp)
