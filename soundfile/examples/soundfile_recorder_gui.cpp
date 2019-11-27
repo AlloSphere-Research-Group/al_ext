@@ -10,23 +10,30 @@ using namespace al;
 
 struct MyApp : public App {
   OutputRecorder soundFileRecorder;
-  gam::Square<> wave{440.0f};
+  gam::Saw<> wave{440.0f};
 
   void onInit() override {
+    audioIO().print();
     // Set Gamma sampling rate. Needed for the gam::Square oscillator
     gam::sampleRate(audioIO().framesPerSecond());
 
-    // Set writing time to 2 seconds. This will end recording automatically
+    // Set writing time out to 5 seconds. This will end recording automatically
     // You can also end recording programmatically by using soundfile.close()
     // if setMaxWriteTime() is not used to set max time, record will continue
     // until disk space runs out.
-    soundFileRecorder.setMaxWriteTime(20.0f);
+    soundFileRecorder.setMaxWriteTime(5.0f);
+    // Display a message on recording timeout
+    soundFileRecorder.registerStopRecordCallback([&](bool timeOut) {
+      if (timeOut) {
+        std::cout << "recording reached max length." << std::endl;
+      }
+    });
     audioIO().append(soundFileRecorder);
   }
 
   void onCreate() override { imguiInit(); }
 
-  void onAnimate(double dt) {
+  void onAnimate(double dt) override {
     // Prepare GUI
     imguiBeginFrame();
 
@@ -38,7 +45,7 @@ struct MyApp : public App {
     imguiEndFrame();
   }
 
-  void onDraw(Graphics &g) {
+  void onDraw(Graphics &g) override {
     g.clear();
 
     // Draw the GUI
@@ -49,8 +56,8 @@ struct MyApp : public App {
     while (io()) {
       // Write the signal to the output
       float waveValue = wave();
-      io.out(0) = waveValue * 0.5;
-      io.out(1) = -waveValue * 0.5;  // Phase inverted
+      io.out(0) = waveValue * 0.5f;
+      io.out(1) = -waveValue * 0.5f;  // Phase inverted
     }
     // write the output buffers to the soundfile
     //        soundFile.write({io.outBuffer(0), io.outBuffer(1)},
@@ -59,6 +66,7 @@ struct MyApp : public App {
 
   bool onKeyDown(Keyboard const &k) override {
     int midiVal = asciiToMIDI(k.key());
+    std::cout << midiVal << std::endl;
     if (midiVal > 0) {  // Change frequency from keyboard
       wave.freq(220 * pow(2, (midiVal - 69) / 12.0));
     }
@@ -68,7 +76,7 @@ struct MyApp : public App {
   void onExit() { imguiShutdown(); }
 };
 
-int main(int argc, char *argv[]) {
+int main() {
   MyApp app;
   app.start();
   return 0;

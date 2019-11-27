@@ -84,6 +84,11 @@ class SoundFileBufferedRecord {
   //  ///
   //  void setWriteCallback(CallbackFunc func, void *userData);
 
+  void registerStopRecordCallback(
+      std::function<void(bool)> stopRecordCallback) {
+    mStopRecordCallback = stopRecordCallback;
+  }
+
   int currentPosition();
 
  protected:
@@ -106,6 +111,7 @@ class SoundFileBufferedRecord {
   std::unique_ptr<float[]>
       mFileBuffer;  // Interleaved Buffer to copy file samples to (in the write
                     // thread before passing to ring buffer)
+  std::function<void(bool)> mStopRecordCallback;
 
   static void writeFunction(SoundFileBufferedRecord *obj,
                             std::condition_variable *cond,
