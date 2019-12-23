@@ -1,8 +1,7 @@
 #ifndef INCLUDE_AL_CUTTLEBONEAPP_HPP
 #define INCLUDE_AL_CUTTLEBONEAPP_HPP
 
-/* Keehong Youn, 2017, younkeehong@gmail.com
- * Andres Cabrera, 2018, 2019, mantaraya36@gmail.com
+/* Andres Cabrera, 2019, mantaraya36@gmail.com
  */
 
 #include <iostream>
@@ -11,14 +10,6 @@
 #include "al/app/al_DistributedApp.hpp"
 #include "al/app/al_SimulationDomain.hpp"
 #include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
-
-/*
- * MPI and cuttlebone are optional.
- */
-#ifdef AL_BUILD_MPI
-#include <mpi.h>
-#include <unistd.h>
-#endif
 
 #ifdef AL_USE_CUTTLEBONE
 #include "Cuttlebone/Cuttlebone.hpp"

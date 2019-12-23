@@ -6,8 +6,6 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <mutex>
-#include <stack>
 #include <vector>
 
 #include "al/app/al_App.hpp"
