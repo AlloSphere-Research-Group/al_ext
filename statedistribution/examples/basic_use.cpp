@@ -12,20 +12,26 @@ struct State {
 
 struct MyDistributedApp : public DistributedAppWithState<State> {
   Mesh mesh;
-  bool simulator{false};
+  // You can keep a pointer to the cuttlebone domain
+  // This can be useful to ask the domain if it is a sender or receiver
+  std::shared_ptr<CuttleboneStateSimulationDomain<State>> cuttleboneDomain;
 
   void onInit() override {
-    auto cuttleboneDomain =
+    // Add cuttlebone support to this app
+    cuttleboneDomain =
         CuttleboneStateSimulationDomain<State>::enableCuttlebone(this);
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
     }
     addIcosahedron(mesh);
+    mesh.primitive(Mesh::LINES);
   }
 
   void onAnimate(double dt) override {
-    if (simulator) {
+    // Check if we are a sender or a receiver and write or read from state
+    // accordingly
+    if (cuttleboneDomain->isSender()) {
       state().backgroundColor.r = float(mouse().x()) / width();
       state().backgroundColor.g = float(mouse().y()) / height();
       state().pose = pose();
@@ -35,17 +41,16 @@ struct MyDistributedApp : public DistributedAppWithState<State> {
   }
 
   void onDraw(Graphics& g) override {
+    // We use the state background color
+    // This will work no matter if we are readers or writers of state.
     g.clear(state().backgroundColor);
     g.color(0.5);
     g.draw(mesh);
   }
 };
 
-int main(int argc, char* argv[]) {
+int main() {
   MyDistributedApp app;
-  if (argc == 1 || strncmp(argv[1], "-r", 2)) {
-    app.simulator = true;
-  }
   app.start();
   return 0;
 }

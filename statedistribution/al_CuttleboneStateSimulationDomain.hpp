@@ -28,22 +28,19 @@ namespace al {
 
 template <class TSharedState>
 class CuttleboneStateSimulationDomain
-    : public StateSimulationDomain<TSharedState> {
+    : public StateDistributionDomain<TSharedState> {
  public:
   virtual bool initialize(ComputationDomain *parent = nullptr) {
-    return StateSimulationDomain<TSharedState>::initialize(parent);
+    return StateDistributionDomain<TSharedState>::initialize(parent);
   }
-
-  TSharedState &state() { return *mState; }
-
-  std::shared_ptr<TSharedState> statePtr() { return mState; }
 
   virtual std::shared_ptr<StateSendDomain<TSharedState>> addStateSender(
       std::string id = "") {
     auto newDomain =
         this->template newSubDomain<CuttleboneSendDomain<TSharedState>>(false);
     newDomain->setId(id);
-    newDomain->setStatePointer(statePtr());
+    newDomain->setStatePointer(this->statePtr());
+    this->mIsSender = true;
     return newDomain;
   }
 
@@ -53,7 +50,7 @@ class CuttleboneStateSimulationDomain
         this->template newSubDomain<CuttleboneReceiveDomain<TSharedState>>(
             true);
     newDomain->setId(id);
-    newDomain->setStatePointer(statePtr());
+    newDomain->setStatePointer(this->statePtr());
     return newDomain;
   }
 
@@ -66,10 +63,14 @@ class CuttleboneStateSimulationDomain
     app->graphicsDomain()->removeSubDomain(app->simulationDomain());
     if (cbDomain) {
       //      cbDomain->A
-      app->simulationDomain() = cbDomain;
+      app->mSimulationDomain = cbDomain;
+
+      cbDomain->simulationFunction =
+          std::bind(&App::onAnimate, app, std::placeholders::_1);
       if (app->isPrimary()) {
         auto sender = cbDomain->addStateSender();
         assert(sender);
+        sender->setAddress("127.0.0.1");
       } else {
         auto receiver = cbDomain->addStateReceiver();
         assert(receiver);

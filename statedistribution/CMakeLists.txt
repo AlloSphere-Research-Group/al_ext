@@ -19,8 +19,13 @@ include("../BuildExamples.cmake")
 
   set(THIS_EXTENSION_LIBRARY_NAME al_statedistribution)
 
+
   add_library(${THIS_EXTENSION_LIBRARY_NAME} ${THIS_EXTENSION_SRC} ${THIS_EXTENSION_HEADERS})
 
+  if(USE_CUTTLEBONE)
+      target_compile_definitions(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC AL_USE_CUTTLEBONE)
+      target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC cuttlebone/)
+  endif(USE_CUTTLEBONE)
   # c++14 It's very important to set this for the extension as not
   # setting it will cause targets upstream to not use c++14
   set_target_properties(${THIS_EXTENSION_LIBRARY_NAME} PROPERTIES
