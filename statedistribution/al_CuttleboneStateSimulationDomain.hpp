@@ -1,8 +1,7 @@
 #ifndef INCLUDE_AL_CUTTLEBONEAPP_HPP
 #define INCLUDE_AL_CUTTLEBONEAPP_HPP
 
-/* Keehong Youn, 2017, younkeehong@gmail.com
- * Andres Cabrera, 2018, 2019, mantaraya36@gmail.com
+/* Andres Cabrera, 2019, mantaraya36@gmail.com
  */
 
 #include <iostream>
@@ -12,14 +11,6 @@
 #include "al/app/al_SimulationDomain.hpp"
 #include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
 
-/*
- * MPI and cuttlebone are optional.
- */
-#ifdef AL_BUILD_MPI
-#include <mpi.h>
-#include <unistd.h>
-#endif
-
 #ifdef AL_USE_CUTTLEBONE
 #include "Cuttlebone/Cuttlebone.hpp"
 #endif
@@ -28,22 +19,19 @@ namespace al {
 
 template <class TSharedState>
 class CuttleboneStateSimulationDomain
-    : public StateSimulationDomain<TSharedState> {
+    : public StateDistributionDomain<TSharedState> {
  public:
   virtual bool initialize(ComputationDomain *parent = nullptr) {
-    return StateSimulationDomain<TSharedState>::initialize(parent);
+    return StateDistributionDomain<TSharedState>::initialize(parent);
   }
-
-  TSharedState &state() { return *mState; }
-
-  std::shared_ptr<TSharedState> statePtr() { return mState; }
 
   virtual std::shared_ptr<StateSendDomain<TSharedState>> addStateSender(
       std::string id = "") {
     auto newDomain =
         this->template newSubDomain<CuttleboneSendDomain<TSharedState>>(false);
     newDomain->setId(id);
-    newDomain->setStatePointer(statePtr());
+    newDomain->setStatePointer(this->statePtr());
+    this->mIsSender = true;
     return newDomain;
   }
 
@@ -53,7 +41,7 @@ class CuttleboneStateSimulationDomain
         this->template newSubDomain<CuttleboneReceiveDomain<TSharedState>>(
             true);
     newDomain->setId(id);
-    newDomain->setStatePointer(statePtr());
+    newDomain->setStatePointer(this->statePtr());
     return newDomain;
   }
 
@@ -66,7 +54,10 @@ class CuttleboneStateSimulationDomain
     app->graphicsDomain()->removeSubDomain(app->simulationDomain());
     if (cbDomain) {
       //      cbDomain->A
-      app->simulationDomain() = cbDomain;
+      app->mSimulationDomain = cbDomain;
+
+      cbDomain->simulationFunction =
+          std::bind(&App::onAnimate, app, std::placeholders::_1);
       if (app->isPrimary()) {
         auto sender = cbDomain->addStateSender();
         if (app->additionalConfig.find("broadcastAddress") !=
@@ -74,6 +65,7 @@ class CuttleboneStateSimulationDomain
           sender->setAddress(app->additionalConfig["broadcastAddress"]);
         }
         assert(sender);
+        sender->setAddress("127.0.0.1");
       } else {
         auto receiver = cbDomain->addStateReceiver();
         assert(receiver);
