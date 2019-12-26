@@ -69,6 +69,10 @@ class CuttleboneStateSimulationDomain
       app->simulationDomain() = cbDomain;
       if (app->isPrimary()) {
         auto sender = cbDomain->addStateSender();
+        if (app->additionalConfig.find("broadcastAddress") !=
+            app->additionalConfig.end()) {
+          sender->setAddress(app->additionalConfig["broadcastAddress"]);
+        }
         assert(sender);
       } else {
         auto receiver = cbDomain->addStateReceiver();
@@ -78,6 +82,7 @@ class CuttleboneStateSimulationDomain
         cbDomain = nullptr;
         return nullptr;
       }
+
     } else {
       std::cerr << "ERROR creating cuttlebone domain" << std::endl;
     }
