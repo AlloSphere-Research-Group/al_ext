@@ -63,9 +63,10 @@ class CuttleboneStateSimulationDomain
         if (app->additionalConfig.find("broadcastAddress") !=
             app->additionalConfig.end()) {
           sender->setAddress(app->additionalConfig["broadcastAddress"]);
+        } else {
+          sender->setAddress("127.0.0.1");
         }
         assert(sender);
-        sender->setAddress("127.0.0.1");
       } else {
         auto receiver = cbDomain->addStateReceiver();
         assert(receiver);
