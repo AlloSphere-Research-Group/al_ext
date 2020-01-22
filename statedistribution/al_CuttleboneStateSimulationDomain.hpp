@@ -17,6 +17,14 @@
 
 namespace al {
 
+static bool canUseCuttlebone() {
+#ifdef AL_USE_CUTTLEBONE
+  return true;
+#else
+  return false;
+#endif
+}
+
 template <class TSharedState>
 class CuttleboneStateSimulationDomain
     : public StateDistributionDomain<TSharedState> {
