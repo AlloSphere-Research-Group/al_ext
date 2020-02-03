@@ -87,7 +87,7 @@ class CuttleboneReceiveDomain : public StateReceiveDomain<TSharedState> {
     this->cleanupSubdomains(false);
     return true;
 #else
-    mState = nullptr;
+    //    mState = nullptr;
     return false;
 #endif
   }
@@ -169,7 +169,7 @@ class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
     this->cleanupSubdomains(false);
     return true;
 #else
-    mState = nullptr;
+    //    mState = nullptr;
     return false;
 #endif
   }

@@ -1,5 +1,5 @@
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux" OR ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(USE_CUTTLEBONE 1)
+    option(USE_CUTTLEBONE 1)
     add_subdirectory(cuttlebone)
 endif()
 
