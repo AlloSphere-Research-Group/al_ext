@@ -12,20 +12,19 @@ Graham Wakefield 2011
 #include "al/app/al_App.hpp"
 #include "al_ext/assets3d/al_Asset.hpp"
 //#include "module/img/loadImage.hpp"
-#include <algorithm> // max
-#include <cstdint>   // uint8_t
+#include <algorithm>  // max
+#include <cstdint>    // uint8_t
 #include <vector>
 
 using namespace al;
 using namespace std;
 
 struct MyApp : App {
-
   Scene *ascene{nullptr};
   Vec3f scene_min, scene_max, scene_center;
   Texture tex;
   vector<Mesh> meshes;
-  float a = 0.f; // current rotation angle
+  float a = 0.f;  // current rotation angle
 
   void onCreate() {
     // load in a "scene"
@@ -62,7 +61,7 @@ struct MyApp : App {
   void onDraw(Graphics &g) {
     g.clear(0.1);
 
-    g.depthTesting(true);
+    gl::depthTesting(true);
     g.lighting(true);
     // g.light().dir(1.f, 1.f, 2.f);
 
