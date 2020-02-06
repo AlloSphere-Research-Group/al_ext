@@ -1,20 +1,17 @@
 #ifndef SOUNDFILEBUFFERED_H
 #define SOUNDFILEBUFFERED_H
 
-
+#include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <memory>
 #include <mutex>
 #include <thread>
-#include <condition_variable>
-#include <memory>
-#include <atomic>
-#include <functional>
 
 #include "Gamma/SoundFile.h"
 #include "al/types/al_SingleRWRingBuffer.hpp"
 
-
-namespace al
-{
+namespace al {
 
 ///
 /// \brief Read a soundfile with buffering on a low priority thread
@@ -26,15 +23,17 @@ namespace al
 /// for low latency, high efficiency and drop-out free soundfile access.
 ///
 ///
-class SoundFileBuffered
-{
-public:
+class SoundFileBuffered {
+ public:
   ///
   /// \param fullPath The full path to the audio file
-  /// \param loop set to true if you want the sound file to start over when finished
-  /// \param bufferFrames the size of the ring buffer. Set to larger if experiencing dropouts or if planning to read more samples, e.g. the audio buffer size is large.
+  /// \param loop set to true if you want the sound file to start over when
+  /// finished \param bufferFrames the size of the ring buffer. Set to larger if
+  /// experiencing dropouts or if planning to read more samples, e.g. the audio
+  /// buffer size is large.
   ///
-  SoundFileBuffered(std::string fullPath = std::string(), bool loop = false, int bufferFrames = 1024);
+  SoundFileBuffered(std::string fullPath = std::string(), bool loop = false,
+                    int bufferFrames = 1024);
   ~SoundFileBuffered();
 
   bool open(std::string fullPath);
@@ -47,13 +46,13 @@ public:
   ///
   size_t read(float *buffer, int numFrames);
 
-  bool opened() const;								///< Returns whether the sound file is open
-  gam::SoundFile::EncodingType encoding() const;	///< Get encoding type
-  gam::SoundFile::Format format() const;			///< Get format
-  double frameRate() const;							///< Get frames/second
-  int frames() const;								///< Get number of frames
-  int channels() const;								///< Get number of channels
-  int samples() const;								///< Get number of samples ( = frames x channels)
+  bool opened() const;  ///< Returns whether the sound file is open
+  gam::SoundFile::EncodingType encoding() const;  ///< Get encoding type
+  gam::SoundFile::Format format() const;          ///< Get format
+  double frameRate() const;                       ///< Get frames/second
+  int frames() const;                             ///< Get number of frames
+  int channels() const;                           ///< Get number of channels
+  int samples() const;  ///< Get number of samples ( = frames x channels)
 
   ///
   /// \brief returns how many times the file has been repeated.
@@ -64,8 +63,9 @@ public:
   ///
   int repeats();
 
-  typedef std::function<void(float *buffer, int numChannels,
-                             int numFrames, void * userData)> CallbackFunc;
+  typedef std::function<void(float *buffer, int numChannels, int numFrames,
+                             void *userData)>
+      CallbackFunc;
 
   ///
   /// \brief Set a function that will be called whenever samples are read
@@ -89,27 +89,28 @@ public:
 
   int currentPosition();
 
-private:
+ private:
   bool mRunning;
   bool mLoop;
   std::atomic<int> mRepeats;
   std::atomic<int> mSeek;
-  std::atomic<int> mCurPos; // Updated once per read buffer
+  std::atomic<int> mCurPos;  // Updated once per read buffer
   std::mutex mLock;
   std::condition_variable mCondVar;
   std::thread *mReaderThread;
   SingleRWRingBuffer *mRingBuffer;
-  int mBufferFrames;
+  size_t mBufferFrames;
 
   gam::SoundFile mSf;
   CallbackFunc mReadCallback;
   void *mCallbackData;
 
-  float *mFileBuffer; // Buffer to copy file samples to (in the reader thread before passing to ring buffer)
+  float *mFileBuffer;  // Buffer to copy file samples to (in the reader thread
+                       // before passing to ring buffer)
 
   static void readFunction(SoundFileBuffered *obj);
 };
 
-} // namespace al
+}  // namespace al
 
-#endif // SOUNDFILEBUFFERED_H
+#endif  // SOUNDFILEBUFFERED_H

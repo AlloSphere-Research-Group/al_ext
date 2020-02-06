@@ -1,41 +1,45 @@
 #include "al_ext/soundfile/al_SoundfileBuffered.hpp"
 
+#include <algorithm>
+#include <iostream>
+
 using namespace al;
 
-SoundFileBuffered::SoundFileBuffered(std::string fullPath, bool loop, int bufferFrames) :
-  mRunning(true),
-  mLoop(loop),
-  mRepeats(0),
-  mSeek(-1),
-  mCurPos(0),
-  mBufferFrames(bufferFrames),
-  mReadCallback(nullptr)
-{
+SoundFileBuffered::SoundFileBuffered(std::string fullPath, bool loop,
+                                     int bufferFrames)
+    : mRunning(true),
+      mLoop(loop),
+      mRepeats(0),
+      mSeek(-1),
+      mCurPos(0),
+      mBufferFrames(bufferFrames),
+      mReadCallback(nullptr) {
   open(fullPath);
 }
 
-SoundFileBuffered::~SoundFileBuffered()
-{
-  close();
-}
+SoundFileBuffered::~SoundFileBuffered() { close(); }
 
-bool SoundFileBuffered::open(std::string fullPath)
-{
+bool SoundFileBuffered::open(std::string fullPath) {
   close();
   mSf.path(fullPath);
   mSf.openRead();
   if (mSf.opened()) {
-    mRingBuffer = new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
-    mReaderThread = new std::thread(readFunction, this);
+    std::cout << "buffer frames: " << mBufferFrames << " channels "
+              << channels() << std::endl;
+    mRingBuffer =
+        new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
     mFileBuffer = new float[mBufferFrames * channels()];
+    mReaderThread = new std::thread(readFunction, this);
+
+    // We need to make sure that the condition variable is already waiting when
+    // waking up to pre-fill buffer.
+    mCondVar.notify_one();
     return true;
   }
   return false;
 }
 
-bool SoundFileBuffered::close()
-{
-
+bool SoundFileBuffered::close() {
   if (mSf.opened()) {
     mRunning = false;
     mCondVar.notify_one();
@@ -48,9 +52,9 @@ bool SoundFileBuffered::close()
   return true;
 }
 
-size_t SoundFileBuffered::read(float *buffer, int numFrames)
-{
-  size_t bytesRead = mRingBuffer->read((char *) buffer, numFrames * channels() * sizeof(float));
+size_t SoundFileBuffered::read(float *buffer, int numFrames) {
+  size_t bytesRead =
+      mRingBuffer->read((char *)buffer, numFrames * channels() * sizeof(float));
   if (bytesRead != numFrames * channels() * sizeof(float)) {
     // TODO: handle underrun
   }
@@ -58,62 +62,61 @@ size_t SoundFileBuffered::read(float *buffer, int numFrames)
   return bytesRead / (channels() * sizeof(float));
 }
 
-bool SoundFileBuffered::opened() const
-{
-  return mSf.opened();
-}
+bool SoundFileBuffered::opened() const { return mSf.opened(); }
 
-void SoundFileBuffered::readFunction(SoundFileBuffered  *obj)
-{
+void SoundFileBuffered::readFunction(SoundFileBuffered *obj) {
   while (obj->mRunning) {
     std::unique_lock<std::mutex> lk(obj->mLock);
     obj->mCondVar.wait(lk);
-    int framesToRead = obj->mRingBuffer->writeSpace() / (obj->channels() * sizeof(float));
-    int framesRead = obj->mSf.read(obj->mFileBuffer, framesToRead);
+    size_t framesToRead =
+        obj->mRingBuffer->writeSpace() / (obj->channels() * sizeof(float));
+    framesToRead = std::min(framesToRead, obj->mBufferFrames);
+    int framesRead = obj->mSf.read<float>(obj->mFileBuffer, framesToRead);
     std::atomic_fetch_add(&(obj->mCurPos), framesRead);
     int seek = obj->mSeek.load();
-    if (seek >= 0) { // Process seek request
+    if (seek >= 0) {  // Process seek request
       obj->mSf.seek(seek, SEEK_SET);
       obj->mSeek.store(-1);
     }
-    if (framesRead != framesToRead) { // Final incomplete buffer in the file
-      framesRead += obj->mSf.read(obj->mFileBuffer + framesRead, framesToRead - framesRead);
+    if (framesRead != framesToRead) {  // Final incomplete buffer in the file
+      framesRead += obj->mSf.read(obj->mFileBuffer + framesRead,
+                                  framesToRead - framesRead);
       if (obj->mLoop) {
         obj->mSf.seek(0, SEEK_SET);
         std::atomic_fetch_add(&(obj->mRepeats), 1);
       }
     }
-    size_t written = obj->mRingBuffer->write((const char*) obj->mFileBuffer, framesRead * sizeof(float) * obj->channels());
+    size_t written =
+        obj->mRingBuffer->write((const char *)obj->mFileBuffer,
+                                framesRead * sizeof(float) * obj->channels());
     //		if (written != framesRead * sizeof(float) * obj->channels()) {
     //			// TODO handle overrun
     //		}
     if (obj->mReadCallback) {
-      obj->mReadCallback(obj->mFileBuffer, obj->mSf.channels(), framesRead, obj->mCallbackData);
+      obj->mReadCallback(obj->mFileBuffer, obj->mSf.channels(), framesRead,
+                         obj->mCallbackData);
     }
     lk.unlock();
   }
 }
 
-gam::SoundFile::EncodingType SoundFileBuffered::encoding() const
-{
+gam::SoundFile::EncodingType SoundFileBuffered::encoding() const {
   if (opened()) {
     return mSf.encoding();
   } else {
-    return (gam::SoundFile::EncodingType) 0;
+    return (gam::SoundFile::EncodingType)0;
   }
 }
 
-gam::SoundFile::Format SoundFileBuffered::format() const
-{
+gam::SoundFile::Format SoundFileBuffered::format() const {
   if (opened()) {
     return mSf.format();
   } else {
-    return (gam::SoundFile::Format) 0;
+    return (gam::SoundFile::Format)0;
   }
 }
 
-double SoundFileBuffered::frameRate() const
-{
+double SoundFileBuffered::frameRate() const {
   if (opened()) {
     return mSf.frameRate();
   } else {
@@ -121,8 +124,7 @@ double SoundFileBuffered::frameRate() const
   }
 }
 
-int SoundFileBuffered::frames() const
-{
+int SoundFileBuffered::frames() const {
   if (opened()) {
     return mSf.frames();
   } else {
@@ -130,8 +132,7 @@ int SoundFileBuffered::frames() const
   }
 }
 
-int SoundFileBuffered::channels() const
-{
+int SoundFileBuffered::channels() const {
   if (opened()) {
     return mSf.channels();
   } else {
@@ -139,8 +140,7 @@ int SoundFileBuffered::channels() const
   }
 }
 
-int SoundFileBuffered::samples() const
-{
+int SoundFileBuffered::samples() const {
   if (opened()) {
     return mSf.samples();
   } else {
@@ -148,19 +148,15 @@ int SoundFileBuffered::samples() const
   }
 }
 
-int SoundFileBuffered::repeats()
-{
-  return mRepeats.load();
-}
+int SoundFileBuffered::repeats() { return mRepeats.load(); }
 
-void SoundFileBuffered::setReadCallback(SoundFileBuffered::CallbackFunc func, void *userData)
-{
+void SoundFileBuffered::setReadCallback(SoundFileBuffered::CallbackFunc func,
+                                        void *userData) {
   mReadCallback = func;
   mCallbackData = userData;
 }
 
-void SoundFileBuffered::seek(int frame)
-{
+void SoundFileBuffered::seek(int frame) {
   if (frame < 0) {
     frame = 0;
   }
@@ -171,7 +167,4 @@ void SoundFileBuffered::seek(int frame)
   mCurPos.store(frame);
 }
 
-int SoundFileBuffered::currentPosition()
-{
-  return mCurPos.load();
-}
+int SoundFileBuffered::currentPosition() { return mCurPos.load(); }
