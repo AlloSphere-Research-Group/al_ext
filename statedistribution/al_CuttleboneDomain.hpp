@@ -165,6 +165,7 @@ class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
 #ifdef AL_USE_CUTTLEBONE
     if (mMaker) {
       mMaker->stop();
+      mMaker = nullptr;
     }
     this->cleanupSubdomains(false);
     return true;
