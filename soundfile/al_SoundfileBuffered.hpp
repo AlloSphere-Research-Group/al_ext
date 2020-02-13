@@ -36,6 +36,7 @@ class SoundFileBuffered {
                     int bufferFrames = 1024);
   ~SoundFileBuffered();
 
+  void loop(bool loop = true) { mLoop = loop; }
   bool open(std::string fullPath);
   bool close();
   ///

@@ -24,8 +24,8 @@ bool SoundFileBuffered::open(std::string fullPath) {
   mSf.path(fullPath);
   mSf.openRead();
   if (mSf.opened()) {
-    std::cout << "buffer frames: " << mBufferFrames << " channels "
-              << channels() << std::endl;
+    std::cout << "buffer frames (per channel): " << mBufferFrames
+              << " channels " << channels() << std::endl;
     mRingBuffer =
         new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
     mFileBuffer = new float[mBufferFrames * channels()];
@@ -56,6 +56,7 @@ size_t SoundFileBuffered::read(float *buffer, int numFrames) {
   size_t bytesRead =
       mRingBuffer->read((char *)buffer, numFrames * channels() * sizeof(float));
   if (bytesRead != numFrames * channels() * sizeof(float)) {
+    //    std::cerr << "Warning: underrun" << std::endl;
     // TODO: handle underrun
   }
   mCondVar.notify_one();
@@ -68,30 +69,39 @@ void SoundFileBuffered::readFunction(SoundFileBuffered *obj) {
   while (obj->mRunning) {
     std::unique_lock<std::mutex> lk(obj->mLock);
     obj->mCondVar.wait(lk);
-    size_t framesToRead =
-        obj->mRingBuffer->writeSpace() / (obj->channels() * sizeof(float));
-    framesToRead = std::min(framesToRead, obj->mBufferFrames);
-    int framesRead = obj->mSf.read<float>(obj->mFileBuffer, framesToRead);
-    std::atomic_fetch_add(&(obj->mCurPos), framesRead);
     int seek = obj->mSeek.load();
     if (seek >= 0) {  // Process seek request
       obj->mSf.seek(seek, SEEK_SET);
       obj->mSeek.store(-1);
     }
-    if (framesRead != framesToRead) {  // Final incomplete buffer in the file
-      framesRead += obj->mSf.read(obj->mFileBuffer + framesRead,
-                                  framesToRead - framesRead);
+    size_t framesToRead =
+        obj->mRingBuffer->writeSpace() / (obj->channels() * sizeof(float));
+    framesToRead = std::min(framesToRead, obj->mBufferFrames);
+    if (framesToRead < obj->mBufferFrames - 1) {
+      // The ring buffer is 1 sample smaller than allocated, so this check
+      // is fudged to compensate for that.
+      // TODO handle overrun
+      std::cerr << "Warning: overrun available " << framesToRead << " needed "
+                << obj->mBufferFrames << std::endl;
+      continue;
+    }
+    int framesRead = obj->mSf.read<float>(obj->mFileBuffer, framesToRead);
+    std::atomic_fetch_add(&(obj->mCurPos), framesRead);
+    if ((size_t)framesRead !=
+        framesToRead) {  // Final incomplete buffer in the file
       if (obj->mLoop) {
         obj->mSf.seek(0, SEEK_SET);
         std::atomic_fetch_add(&(obj->mRepeats), 1);
+        framesRead += obj->mSf.read(obj->mFileBuffer + framesRead,
+                                    framesToRead - framesRead);
       }
     }
-    size_t written =
-        obj->mRingBuffer->write((const char *)obj->mFileBuffer,
-                                framesRead * sizeof(float) * obj->channels());
-    //		if (written != framesRead * sizeof(float) * obj->channels()) {
-    //			// TODO handle overrun
-    //		}
+    //    size_t written =
+    obj->mRingBuffer->write((const char *)obj->mFileBuffer,
+                            framesRead * sizeof(float) * obj->channels());
+    //    if (written != framesRead * sizeof(float) * obj->channels()) {
+    //      std::cerr << "Error writing to ring buffer" << std::endl;
+    //    }
     if (obj->mReadCallback) {
       obj->mReadCallback(obj->mFileBuffer, obj->mSf.channels(), framesRead,
                          obj->mCallbackData);
