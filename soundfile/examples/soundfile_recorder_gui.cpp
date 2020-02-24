@@ -59,9 +59,6 @@ struct MyApp : public App {
       io.out(0) = waveValue * 0.5f;
       io.out(1) = -waveValue * 0.5f;  // Phase inverted
     }
-    // write the output buffers to the soundfile
-    //        soundFile.write({io.outBuffer(0), io.outBuffer(1)},
-    //        io.framesPerBuffer());
   }
 
   bool onKeyDown(Keyboard const &k) override {
@@ -73,7 +70,7 @@ struct MyApp : public App {
     return true;
   }
 
-  void onExit() { imguiShutdown(); }
+  void onExit() override { imguiShutdown(); }
 };
 
 int main() {

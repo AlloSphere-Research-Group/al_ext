@@ -88,19 +88,18 @@ void SoundFileBufferedRecord::writeFunction(SoundFileBufferedRecord *obj,
   obj->mRunning = true;
   float *writeBuffer =
       new float[size_t(obj->mBufferFrames * obj->mSf.channels())];
+  bool timeOut = false;
   condMutex->lock();
   cond->notify_all();  // Signal thread is processing;
   condMutex->unlock();
-  bool timeOut = false;
   while (obj->mRunning) {
     std::unique_lock<std::mutex> lk(obj->mLock);
     obj->mCondVar.wait(lk);
     int bytesToWrite = obj->mRingBuffer->read(
         (char *)writeBuffer,
-        obj->mSf.frameRate() * obj->mSf.channels() * sizeof(float));
+        obj->mBufferFrames * obj->mSf.channels() * sizeof(float));
     int framesToWrite = bytesToWrite / (obj->mSf.channels() * sizeof(float));
-    int framesWritten =
-        obj->mSf.write<float>(obj->mFileBuffer.get(), framesToWrite);
+    int framesWritten = obj->mSf.write<float>(writeBuffer, framesToWrite);
     //    std::cout << "Wrote " << framesWritten << std::endl;
     std::atomic_fetch_add(&(obj->mCurPos), framesWritten);
 
