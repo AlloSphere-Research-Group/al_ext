@@ -23,6 +23,8 @@ class OpenVRDomain : public SynchronousDomain {
     drawSceneFunc = func;
   }
 
+  void setViewOffset(Vec3d offset) { mOpenVR.viewOffset.pos(offset); }
+
   static std::shared_ptr<OpenVRDomain> enableVR(App *app) {
 #ifdef AL_EXT_OPENVR
     auto vrDomain = app->graphicsDomain()->newSubDomain<OpenVRDomain>(true);

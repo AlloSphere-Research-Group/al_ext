@@ -26,13 +26,11 @@ namespace al {
 // TO DO: buttonPress event may sometimes crash the program for unknown reason.
 
 struct Controller {
-public:
+ public:
   int deviceID;
-  al::Mat4f mat;
-  al::Vec3f pos;
-  al::Quatf quat;
-  al::Vec3f lpos;
-  al::Vec3f vel;
+  Mat4f mat;
+  Pose mPose;
+  Vec3f vel;
 
   uint64_t buttonsDown;
   uint64_t buttonsLE;
@@ -44,9 +42,9 @@ public:
   bool triggerPressed;
   bool triggerTouched;
   bool systemPressed;
-  al::Vec2f touchPos;
-  al::Vec2f touchVel;
-  bool triggered; // triggered has a customizable threshold
+  Vec2f touchPos;
+  Vec2f touchVel;
+  bool triggered;  // triggered has a customizable threshold
   float triggerThreshold;
   float triggerPressure;
   bool gripped;
@@ -59,7 +57,7 @@ public:
     touchpadPressed = false;
     triggerPressed = false;
     triggerTouched = false;
-    triggerThreshold = 0.9f; // 0.0 - 1.0f
+    triggerThreshold = 0.9f;  // 0.0 - 1.0f
     systemPressed = false;
     triggered = false;
     gripped = false;
@@ -83,12 +81,12 @@ public:
     return triggered;
   }
 
-  Rayd ray() { return Rayd(pos, -quat.toVectorZ()); }
-  Pose pose() { return Pose(pos, quat); }
+  Rayd ray() { return Rayd(pose().pos(), -pose().quat().toVectorZ()); }
+  Pose &pose() { return mPose; }
 };
 
 class OpenVRWrapper {
-public:
+ public:
   bool init();
   bool update();
   void draw(std::function<void(Graphics &)> drawingFunction, Graphics &g);
@@ -103,7 +101,9 @@ public:
   al::Mat4f eyePosLeft;
   al::Mat4f eyePosRight;
 
-protected:
+  Pose viewOffset;
+
+ protected:
 #ifdef AL_EXT_OPENVR
   vr::IVRSystem *vr_context = nullptr;
   vr::TrackedDevicePose_t tracked_device_pose[vr::k_unMaxTrackedDeviceCount];
@@ -112,7 +112,8 @@ protected:
   int m_iValidPoseCount = 0;
   std::string m_strPoseClasses;
   al::Mat4f m_rmat4DevicePose[vr::k_unMaxTrackedDeviceCount];
-  char m_rDevClassChar[vr::k_unMaxTrackedDeviceCount]; // for each device, a
+  char
+      m_rDevClassChar[vr::k_unMaxTrackedDeviceCount];  // for each device, a
                                                        // character representing
                                                        // its class
   float m_fNearClip = 0.01, m_fFarClip = 100;
@@ -149,10 +150,10 @@ protected:
   void finishDraw(al::Graphics &g);
 
 #ifdef AL_EXT_OPENVR
-  static al::Mat4f
-  ConvertSteamVRMatrixToAlMat4f(const vr::HmdMatrix44_t &matPose);
-  static al::Mat4f
-  ConvertSteamVRMatrixToAlMat4f(const vr::HmdMatrix34_t &matPose);
+  static al::Mat4f ConvertSteamVRMatrixToAlMat4f(
+      const vr::HmdMatrix44_t &matPose);
+  static al::Mat4f ConvertSteamVRMatrixToAlMat4f(
+      const vr::HmdMatrix34_t &matPose);
   static al::Mat4f GetHMDMatrixProjectionEye(vr::IVRSystem *vrsys,
                                              vr::Hmd_Eye nEye, float nearClip,
                                              float farClip);
@@ -164,8 +165,8 @@ protected:
                                             vr::TrackedDeviceProperty prop,
                                             vr::TrackedPropertyError *peError);
 
-  static std::string
-  GetTrackedDeviceClassString(vr::ETrackedDeviceClass td_class);
+  static std::string GetTrackedDeviceClassString(
+      vr::ETrackedDeviceClass td_class);
 
   // void process_overlay_event(const vr::VREvent_t & event){
   //     switch( event.eventType ){
@@ -178,6 +179,6 @@ protected:
 
   bool mInitialized = false;
 };
-} // namespace al
+}  // namespace al
 
 #endif
