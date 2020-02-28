@@ -92,6 +92,8 @@ typedef struct {
 
 class VASPRender {
  public:
+  std::vector<AtomData> mAtomData;
+
   ParameterVec3 mSlicingPlanePoint{"SlicingPlanePoint", "",
                                    Vec3f(0.0f, 0.0, 0.0)};
   ParameterVec3 mSlicingPlaneNormal{"SliceNormal", "", Vec3f(0.0f, 0.0f, 1.0)};
@@ -152,7 +154,7 @@ class VASPRender {
     //      }
     //    });
 
-    mMarkerScale = 0.1f;
+    mMarkerScale = 0.3f;
   }
 
   void setDataBoundaries(BoundingBoxData &b) {
@@ -168,6 +170,7 @@ class VASPRender {
 
   void drawVASP(Graphics &g, float scale, std::vector<AtomData> &mAtomData,
                 std::vector<float> &mAligned4fData) {
+    gl::polygonFill();
     int cumulativeCount = 0;
     // now draw data with custom shaderg.shader(instancing_mesh0.shader);
     g.shader(instancing_mesh0.shader);
@@ -226,6 +229,19 @@ class VASPRender {
     mSlicingPlanePoint =
         mSlicingPlanePoint.get() -
         mSlicingPlaneNormal.get().normalized() * mSlicingPlaneThickness;
+  }
+
+  void resetSlicing() {
+    // Minimum value for hint allows for slice to be completely outside the
+    // dataset so:
+    auto minz =
+        mSlicingPlanePoint.getHint("minz") + mSlicingPlanePoint.getHint("maxz");
+    mSlicingPlanePoint.set({0, 0, minz});
+
+    mSlicingPlaneThickness = mSlicingPlaneThickness.max();
+    mSliceRotationRoll.set(0);
+    mSliceRotationPitch.set(0);
+    //      std::cout << mSlicingPlaneThickness.get() <<std::endl;
   }
 
   const std::string instancing_vert =
