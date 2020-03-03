@@ -47,7 +47,7 @@ class CuttleboneDomain : public StateDistributionDomain<TSharedState> {
         app->graphicsDomain()
             ->newSubDomain<CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>>(
                 true);
-    cbDomain->initialize(app->graphicsDomain().get());
+    cbDomain->init(app->graphicsDomain().get());
     return cbDomain;
 #else
     (void)app;
@@ -64,7 +64,7 @@ template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
           unsigned PORT = 63059>
 class CuttleboneReceiveDomain : public StateReceiveDomain<TSharedState> {
  public:
-  bool initialize(ComputationDomain *parent = nullptr) override;
+  bool init(ComputationDomain *parent = nullptr) override;
 
   bool tick() override {
     this->tickSubdomains(true);
@@ -99,7 +99,7 @@ class CuttleboneReceiveDomain : public StateReceiveDomain<TSharedState> {
 };
 
 template <class TSharedState, unsigned PACKET_SIZE, unsigned PORT>
-bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::initialize(
+bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
     ComputationDomain *parent) {
   this->initializeSubdomains(true);
   assert(parent != nullptr);
@@ -125,7 +125,7 @@ template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
           unsigned PORT = 63059>
 class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
  public:
-  bool initialize(ComputationDomain * /*parent*/ = nullptr) override {
+  bool init(ComputationDomain * /*parent*/ = nullptr) override {
     this->initializeSubdomains(true);
 
 #ifdef AL_USE_CUTTLEBONE

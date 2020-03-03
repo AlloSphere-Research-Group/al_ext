@@ -15,7 +15,7 @@ class OpenVRDomain : public SynchronousDomain {
   virtual ~OpenVRDomain() {}
 
   // Domain management functions
-  bool initialize(ComputationDomain *parent = nullptr) override;
+  bool init(ComputationDomain *parent = nullptr) override;
   bool tick() override;
   bool cleanup(ComputationDomain *parent = nullptr) override;
 
@@ -28,7 +28,7 @@ class OpenVRDomain : public SynchronousDomain {
   static std::shared_ptr<OpenVRDomain> enableVR(App *app) {
 #ifdef AL_EXT_OPENVR
     auto vrDomain = app->graphicsDomain()->newSubDomain<OpenVRDomain>(true);
-    vrDomain->initialize(app->graphicsDomain().get());
+    vrDomain->init(app->graphicsDomain().get());
     return vrDomain;
 #else
     (void)app;

@@ -2,7 +2,7 @@
 
 using namespace al;
 
-bool OpenVRDomain::initialize(ComputationDomain *parent) {
+bool OpenVRDomain::init(ComputationDomain *parent) {
 #ifdef AL_EXT_OPENVR
   // A graphics context is needed to initialize OpenVR
 

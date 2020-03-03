@@ -70,8 +70,8 @@ class MyApp {
   // This start function starts the audio domain, waits for 3 seconds and
   // then exits
   void start() {
-    audioDomain.initialize();
-    consoleDomain.initialize();
+    audioDomain.init();
+    consoleDomain.init();
     // Set audio callback through a lambda
     audioDomain.onSound =
         std::bind(&MyApp::onSound, this, std::placeholders::_1);

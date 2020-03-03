@@ -29,8 +29,8 @@ template <class TSharedState>
 class CuttleboneStateSimulationDomain
     : public StateDistributionDomain<TSharedState> {
  public:
-  virtual bool initialize(ComputationDomain *parent = nullptr) {
-    return StateDistributionDomain<TSharedState>::initialize(parent);
+  virtual bool init(ComputationDomain *parent = nullptr) {
+    return StateDistributionDomain<TSharedState>::init(parent);
   }
 
   virtual std::shared_ptr<StateSendDomain<TSharedState>> addStateSender(
@@ -79,7 +79,7 @@ class CuttleboneStateSimulationDomain
         auto receiver = cbDomain->addStateReceiver();
         assert(receiver);
       }
-      if (!cbDomain->initialize(nullptr)) {
+      if (!cbDomain->init(nullptr)) {
         cbDomain = nullptr;
         return nullptr;
       }
