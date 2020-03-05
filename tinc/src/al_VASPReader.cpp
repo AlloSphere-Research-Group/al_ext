@@ -106,7 +106,6 @@ bool VASPReader::loadFile(std::string fileName) {
   }
 
   ss.clear();
-  //        mTransformMatrix *= 0.001/(49*2.0);
 
   // Element Counts
   std::getline(infile, line);
@@ -118,21 +117,17 @@ bool VASPReader::loadFile(std::string fileName) {
     elementCount.push_back(bufint);
   }
 
-  //        for (auto e: elementCount) {
-  //            std::cout << e.first << "..." << e.second << std::endl;
-  //        }
-
   std::getline(infile, line);
   std::string mode = line;
-  bool useTransformMatrix;
   if (mode == "Direct") {
-    useTransformMatrix = true;
+    mMode = VASP_MODE_DIRECT;
   } else if (mode == "Cartesian") {
-    useTransformMatrix = false;
+    mMode = VASP_MODE_CARTESIAN;
   } else {
-    std::cout << "VASPReader: Unrecognized mode " << mode
-              << ". Assuming Cartesian." << std::endl;
-    useTransformMatrix = false;
+    mMode = VASP_MODE_NONE;
+    if (mVerbose) {
+      std::cerr << "VASPReader: Unrecognized mode " << mode << std::endl;
+    }
   }
 
   std::map<std::string, unsigned int> counter;
@@ -191,7 +186,9 @@ bool VASPReader::loadFile(std::string fileName) {
       }
       if (!(ss >> type)) {
         ss.clear();
-        std::cout << "Error, unexpected: " << line << std::endl;
+        if (mVerbose) {
+          std::cout << "Error, reading species for line: " << line << std::endl;
+        }
       }
 
       {
@@ -223,19 +220,16 @@ bool VASPReader::loadFile(std::string fileName) {
         }
         if (validateInlineNames) {
           if (currentType != type && type != "?" && type != "X") {
-            std::cout << "VASPReader: species mismatch. Got " << type
-                      << " expecting " << currentType << std::endl;
+            if (mVerbose) {
+              std::cout << "VASPReader: species mismatch. Got " << type
+                        << " expecting " << currentType << std::endl;
+            }
           }
         }
         if (std::find(mElementsToIgnore.begin(), mElementsToIgnore.end(),
                       currentType) == mElementsToIgnore.end()) {
-          double x;
-          if (useTransformMatrix) {
-            x = pos.dot(mTransformMatrix.col(0));
-          } else {
-            x = pos.x;
-          }
           assert(mPositions[currentType].size() > counter[currentType] * 4 + 3);
+          double &x = pos.x;
           mPositions[currentType][counter[currentType] * 4] = x;
           if (maxX < x) {
             maxX = x;
@@ -243,12 +237,7 @@ bool VASPReader::loadFile(std::string fileName) {
           if (minX > mPositions[currentType][counter[currentType] * 4]) {
             minX = mPositions[currentType][counter[currentType] * 4];
           }
-          double y;
-          if (useTransformMatrix) {
-            y = pos.dot(mTransformMatrix.col(1));
-          } else {
-            y = pos.y;
-          }
+          double &y = pos.y;
           mPositions[currentType][counter[currentType] * 4 + 1] = y;
           if (maxY < y) {
             maxY = y;
@@ -256,12 +245,7 @@ bool VASPReader::loadFile(std::string fileName) {
           if (minY > y) {
             minY = y;
           }
-          double z;
-          if (useTransformMatrix) {
-            z = pos.dot(mTransformMatrix.col(2));
-          } else {
-            z = pos.z;
-          }
+          double &z = pos.z;
           mPositions[currentType][counter[currentType] * 4 + 2] = z;
           if (maxZ < z) {
             maxZ = z;
@@ -286,13 +270,15 @@ bool VASPReader::loadFile(std::string fileName) {
   return !infile.bad();
 }
 
-std::vector<float> &VASPReader::getElementPositions(std::string elementType) {
+std::vector<float> &VASPReader::getElementPositions(std::string elementType,
+                                                    bool transform) {
   std::unique_lock<std::mutex> lk(mDataLock);
-  if (mPositions.find(elementType) == mPositions.end()) {
-    mPositions[elementType] = std::vector<float>();
+  auto &positions = getAllPositions(transform);
+  if (positions.find(elementType) == positions.end()) {
+    positions[elementType] = std::vector<float>();
     std::cout << "ERROR: Invalid element: " << elementType << std::endl;
   }
-  return mPositions[elementType];
+  return positions[elementType];
 }
 
 void VASPReader::setOption(VASPReader::VASPOption option, bool enable) {
@@ -329,12 +315,76 @@ void VASPReader::ignoreElements(std::vector<std::string> elementsToIgnore) {
 
 void VASPReader::setBasePath(std::string path) { mBasePath = path; }
 
-std::map<std::string, std::vector<float> > &VASPReader::getAllPositions() {
+std::map<std::string, std::vector<float> > &VASPReader::getAllPositions(
+    bool transform) {
+  // Now transform according to matrix
+  if (mMode == VASP_MODE_DIRECT) {
+    maxX = std::numeric_limits<double>::min();
+    maxY = std::numeric_limits<double>::min();
+    maxZ = std::numeric_limits<double>::min();
+    minX = std::numeric_limits<double>::max();
+    minY = std::numeric_limits<double>::max();
+    minZ = std::numeric_limits<double>::max();
+    for (auto &speciesPositions : mPositions) {
+      for (size_t i = 0; i < speciesPositions.second.size() / 4; i++) {
+        Vec3d pos(speciesPositions.second[i * 4],
+                  speciesPositions.second[i * 4 + 1],
+                  speciesPositions.second[i * 4 + 2]);
+
+        auto x = pos.dot(mTransformMatrix.col(0));
+        auto y = pos.dot(mTransformMatrix.col(1));
+        auto z = pos.dot(mTransformMatrix.col(2));
+
+        if (maxX < x) {
+          maxX = x;
+        }
+        if (minX > x) {
+          minX = x;
+        }
+        if (maxY < y) {
+          maxY = y;
+        }
+        if (minY > y) {
+          minY = y;
+        }
+        if (maxZ < z) {
+          maxZ = z;
+        }
+        if (minZ > z) {
+          minZ = z;
+        }
+
+        speciesPositions.second[i * 4] = x;
+        speciesPositions.second[i * 4 + 1] = y;
+        speciesPositions.second[i * 4 + 2] = z;
+      }
+    }
+    mMode = VASP_MODE_CARTESIAN;
+  }
   return mPositions;
 }
 
 bool VASPReader::hasElement(std::string elementType) {
   return mPositions.find(elementType) != mPositions.end();
+}
+
+void VASPReader::stackCells(int count) {
+  for (auto &pos : mPositions) {
+    size_t size = pos.second.size();
+    pos.second.reserve(size + (size)*count * count * count);
+    for (int i = 0; i < size / 4; i++) {
+      for (auto x = 0; x < count; x++) {
+        for (auto y = 0; y < count; y++) {
+          for (auto z = 0; z < count; z++) {
+            pos.second.push_back(pos.second[i * 4] + x);
+            pos.second.push_back(pos.second[i * 4 + 1] + y);
+            pos.second.push_back(pos.second[i * 4 + 2] + z);
+            pos.second.push_back(pos.second[i * 4 + 3]);
+          }
+        }
+      }
+    }
+  }
 }
 
 al::Vec3d VASPReader::getNormalizingVector() {

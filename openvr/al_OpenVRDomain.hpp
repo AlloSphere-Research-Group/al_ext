@@ -29,6 +29,9 @@ class OpenVRDomain : public SynchronousDomain {
 #ifdef AL_EXT_OPENVR
     auto vrDomain = app->graphicsDomain()->newSubDomain<OpenVRDomain>(true);
     vrDomain->init(app->graphicsDomain().get());
+    // Use the app's draw function by default. The user can override this.
+    vrDomain->setDrawFunction(
+        std::bind(&App::onDraw, app, std::placeholders::_1));
     return vrDomain;
 #else
     (void)app;

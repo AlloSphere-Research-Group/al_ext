@@ -13,50 +13,60 @@
 using namespace al;
 
 struct MyApp : public App {
-
   std::shared_ptr<OpenVRDomain> openVRDomain;
   VAOMesh mCube;
 
   void onCreate() override {
-
     addCube(mCube);
     mCube.primitive(Mesh::LINE_STRIP);
     mCube.update();
     openVRDomain = OpenVRDomain::enableVR(this);
+    // The openVR domain will use the app's onDraw function by default to draw
+    // to the HMD
   }
 
   // In the VRApp the draw function only draws to the HMD
   void onDraw(Graphics &g) override {
     g.clear();
     // Draw a cube in the scene
+    g.color(1);
     g.draw(mCube);
 
     // Draw markers for the controllers
     // The openVR object is available in the VRRenderer class to query the
     // controllers
-    g.pushMatrix();
 
 #ifdef AL_EXT_OPENVR
-    g.translate(openVRDomain->mOpenVR.LeftController.pos);
-    g.rotate(openVRDomain->mOpenVR.LeftController.quat);
+    g.pushMatrix();
+    g.translate(openVRDomain->mOpenVR.LeftController.pose().pos());
+    g.rotate(openVRDomain->mOpenVR.LeftController.pose().quat());
     g.scale(0.1);
-    g.color(1);
-    g.polygonMode(Graphics::LINE);
+    g.color(0, 1, 0);
+    gl::polygonLine();
     g.draw(mCube);
     g.popMatrix();
 
     // right hand
     g.pushMatrix();
-    g.translate(openVRDomain->mOpenVR.RightController.pos);
+    g.translate(openVRDomain->mOpenVR.RightController.pose().pos());
     // std::cout << openVR->RightController.pos.x <<
     // openVR->RightController.pos.y << openVR->RightController.pos.z <<
     // std::endl;
-    g.rotate(openVRDomain->mOpenVR.RightController.quat);
+    g.rotate(openVRDomain->mOpenVR.RightController.pose().quat());
     g.scale(0.1);
-    g.color(1);
-    g.polygonMode(Graphics::LINE);
+    g.color(0, 0, 1);
+    gl::polygonLine();
     g.draw(mCube);
     g.popMatrix();
+
+    g.pushMatrix();
+    g.translate(openVRDomain->mOpenVR.HMDPos);
+    g.rotate(openVRDomain->mOpenVR.HMDQuat);
+    g.color(1, 0, 0);
+    gl::polygonLine();
+    g.draw(mCube);
+    g.popMatrix();
+
 #endif
   }
 };

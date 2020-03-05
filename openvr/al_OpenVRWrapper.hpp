@@ -96,6 +96,8 @@ class OpenVRWrapper {
   Controller RightController;
 
   al::Mat4f HMDPose;
+  al::Vec3f HMDPos;
+  al::Quatf HMDQuat;
   al::Mat4f projectionLeft;
   al::Mat4f projectionRight;
   al::Mat4f eyePosLeft;
@@ -133,8 +135,6 @@ class OpenVRWrapper {
   // al::Quatf LeftHandQuat;
   // al::Quatf RightHandQuat;
 #endif
-  al::Vec3f HMDPos;
-  al::Quatf HMDQuat;
 
   std::map<int, Controller *> controllers;
 
