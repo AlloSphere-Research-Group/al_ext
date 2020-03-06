@@ -18,113 +18,16 @@ namespace al {
 
 class NetworkBarrier {
  public:
-  enum { COMMAND_PING };
+  enum { COMMAND_PING, COMMAND_PONG, COMMAND_HANDSHAKE };
 
-  bool initServer(uint16_t port, const char *addr) {
-    if (!mSocket.open(port, addr, 0.5, Socket::TCP)) {
-      std::cerr << "ERROR opening port" << std::endl;
-      return false;
-    }
-    if (!mSocket.bind()) {
-      std::cerr << "ERROR on bind" << std::endl;
-      return false;
-    }
+  typedef enum { SERVER, CLIENT, NONE } BarrierState;
 
-    if (!mSocket.listen()) {
-      std::cerr << "ERROR on listen" << std::endl;
-      return false;
-    }
-    mRunning = true;
-    connections.emplace_back(
-        std::make_shared<Socket>());  // Start with one free socket.
-    mServerThread = std::make_unique<std::thread>([&]() {
-      // Receive data
-      std::cout << "Server started" << std::endl;
-      // Typically, a server will loop to check for incoming packets
-      bool connected = false;
+  bool initServer(uint16_t port = 10467, const char *addr = nullptr);
 
-      while (mRunning) {
-        if (!connected) {
-          auto s = connections.back();
-          if (mSocket.accept(*s)) {
-            connected = true;
-            connectionThreads.emplace_back(std::make_unique<std::thread>(
-                [&](std::shared_ptr<Socket> s) {
-                  std::cout << "Got Connection " << (long)s.get() << std::endl;
-                  while (mRunning) {
-                    char buf[128];
-                    int bytesRecv = s->recv(buf, 128);
-                    if (bytesRecv >= 0) {
-                      std::cout << "received " << bytesRecv << std::endl;
-                      s->send("1234\0", 5);
-                    }
-                  }
-                  std::cout << "Closed Connection " << (long)s.get()
-                            << std::endl;
-                },
-                s));
+  bool initClient(uint16_t serverPort = 10467,
+                  const char *serverAddr = nullptr);
 
-            connections.emplace_back(std::make_shared<Socket>());
-          }
-        } else {
-        }
-      }
-
-      std::cout << "Server quit" << std::endl;
-    });
-    return true;
-  }
-
-  bool initClient(uint16_t port, const char *addr) {
-    if (!mSocket.open(port, addr, 0.3, Socket::TCP)) {
-      return false;
-    }
-    if (!mSocket.connect()) {
-      return false;
-    }
-
-    connectionThreads.emplace_back(std::make_unique<std::thread>(
-        [&](Socket *client) {
-          std::cout << "Client started " << std::endl;
-          while (mRunning) {
-            //            std::unique_lock<std::mutex> lk(mClientMessageLock);
-            unsigned char message[4];
-            size_t commandBytes = commandSendBuffer.read((char *)message, 4);
-            if (commandBytes == 4) {
-              std::cout << "Got command " << (int)message[0] << std::endl;
-              if (message[0] == 1 << COMMAND_PING) {
-                int bytesSent = client->send("1234\0", 5);
-                std::cout << "sent " << bytesSent << std::endl;
-                char buffer[128];
-                int received = client->recv(buffer, 128);
-                std::cout << "rec " << received << std::endl;
-              }
-            } else if (commandBytes != 0) {
-              std::cerr << "ERROR: Internal command buffer underrun"
-                        << std::endl;
-            }
-          }
-
-          std::cout << "Client stopped " << std::endl;
-        },
-        &mSocket));
-
-    return true;
-  }
-
-  void cleanup() {
-    mRunning = false;
-    mSocket.close();
-    if (mServerThread) {
-      mServerThread->join();
-    }
-    for (auto connectionSocket : connections) {
-      connectionSocket->close();
-    }
-    for (auto &connection : connectionThreads) {
-      connection->join();
-    }
-  }
+  void cleanup();
 
   /**
    * @brief Wait for timeoutSecs for reply from all.
@@ -135,13 +38,7 @@ class NetworkBarrier {
    * is ignored. If timeout is 0, this function blocks until all replies are
    * received or
    */
-  bool ping(double timeoutSecs = 0.0) {
-    unsigned char message[4] = {0, 0, 0, 0};
-    message[0] = 1 << COMMAND_PING;
-    commandSendBuffer.write((const char *)message, 4);
-
-    return true;
-  }
+  bool pingClients(double timeoutSecs = 1.0);
 
   /**
    * @brief Block and wait for all nodes to respond
@@ -175,17 +72,25 @@ class NetworkBarrier {
   void reset();
 
  private:
-  SocketServer mSocket;
+  Socket mSocket;
   std::unique_ptr<std::thread> mServerThread;
 
-  std::vector<std::unique_ptr<std::thread>> connectionThreads;
-  std::vector<std::shared_ptr<Socket>> connections;
+  std::vector<std::unique_ptr<std::thread>> mConnectionThreads;
+  std::vector<std::shared_ptr<Socket>> mServerConnections;
 
   std::mutex mClientMessageLock;
 
-  SingleRWRingBuffer commandSendBuffer;
+  SingleRWRingBuffer mCommandSendBuffer;
 
   bool mRunning;
+
+  BarrierState mState{BarrierState::NONE};
+
+  uint16_t mPortOffset = 12000;
+
+  void clientHandlePing(Socket &client);
+
+  void clientHandlePong(Socket &client);
 };
 
 }  // namespace al

@@ -10,6 +10,7 @@ include("../BuildExamples.cmake")
 
       ${CMAKE_CURRENT_LIST_DIR}/src/al_CuttleboneStateSimulationDomain.cpp
       ${CMAKE_CURRENT_LIST_DIR}/src/al_CuttleboneDomain.cpp
+      ${CMAKE_CURRENT_LIST_DIR}/src/al_NetworkBarrier.cpp
     )
 
   set(THIS_EXTENSION_HEADERS

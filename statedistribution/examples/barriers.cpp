@@ -12,26 +12,29 @@ struct MyApp : DistributedApp {
       std::cout << "Error initializing barrier" << std::endl;
       quit();
     }
-    al_sleep(0.5);
-    if (!barrier2.initClient(10467, "localhost")) {
-      std::cout << "Error opening client" << std::endl;
+    al_sleep(1.0);  // Allow port to settle
+    if (!barrierClient1.initClient(10467, "localhost")) {
+      std::cout << "Error opening client 1" << std::endl;
+    }
+    if (!barrierClient2.initClient(10467, "localhost")) {
+      std::cout << "Error opening client 2" << std::endl;
     }
   }
 
   bool onKeyDown(Keyboard const &k) override {
-    barrier2.ping();
+    barrier.pingClients();
     return true;
   }
 
   void onExit() override {
     barrier.cleanup();
-    barrier2.cleanup();
+    barrierClient1.cleanup();
+    barrierClient2.cleanup();
   }
 
-  SocketClient client;
-
   NetworkBarrier barrier;
-  NetworkBarrier barrier2;
+  NetworkBarrier barrierClient1;
+  NetworkBarrier barrierClient2;
 };
 
 int main() {
