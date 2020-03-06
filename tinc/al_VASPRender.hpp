@@ -93,6 +93,7 @@ typedef struct {
 class VASPRender {
  public:
   std::vector<AtomData> mAtomData;
+  BoundingBoxData dataBoundary;
 
   ParameterVec3 mSlicingPlanePoint{"SlicingPlanePoint", "",
                                    Vec3f(0.0f, 0.0, 0.0)};
@@ -158,6 +159,7 @@ class VASPRender {
   }
 
   void setDataBoundaries(BoundingBoxData &b) {
+    dataBoundary = b;
     mSlicingPlanePoint.setHint("maxx", b.max.x);
     mSlicingPlanePoint.setHint("minx", b.min.x - (b.max.x));
     mSlicingPlanePoint.setHint("maxy", b.max.y);
