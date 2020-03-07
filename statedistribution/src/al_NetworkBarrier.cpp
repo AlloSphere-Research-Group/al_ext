@@ -19,8 +19,28 @@ auto to_bytes(std::uint16_t x) {
   return b;
 }
 
+auto to_bytes(std::uint32_t x) {
+  std::array<std::uint8_t, 4> b;
+  b[0] = x >> 8 * 0;
+  b[1] = x >> 8 * 1;
+  b[2] = x >> 8 * 2;
+  b[3] = x >> 8 * 3;
+  /*b[4] = x >> 8 * 4;
+ b[5] = x >> 8 * 5;
+ b[6] = x >> 8 * 6;
+ b[7] = x >> 8 * 7;*/
+  return b;
+}
+
 void from_bytes(const uint8_t *bytes, uint16_t &dest) {
   dest = (uint16_t(bytes[1]) << 8 * 1) | (uint16_t(bytes[0]) << 8 * 0);
+}
+
+void from_bytes(const uint8_t *bytes, uint32_t &dest) {
+  dest = (uint16_t(bytes[3]) << 8 * 3) | (uint16_t(bytes[4]) << 8 * 2) |
+         (uint16_t(bytes[1]) << 8 * 1) | (uint16_t(bytes[0]) << 8 * 0)
+
+      ;
 }
 
 }  // namespace Convert
@@ -60,6 +80,7 @@ bool NetworkBarrier::initServer(uint16_t port, const char *addr) {
             std::cout << "Handshake for " << bootstrapSocket.address() << ":"
                       << port << std::endl;
 
+            mConnectionsLock.lock();
             mServerConnections.emplace_back(std::make_shared<Socket>());
 
             auto s = mServerConnections.back();
@@ -69,6 +90,7 @@ bool NetworkBarrier::initServer(uint16_t port, const char *addr) {
                         << std::endl;
               mServerConnections.resize(mServerConnections.size() - 1);
             }
+            mConnectionsLock.unlock();
           }
         }
         bootstrapSocket.close();
@@ -93,8 +115,10 @@ bool NetworkBarrier::initClient(uint16_t serverPort, const char *serverAddr) {
   int maxPorts = 1000;
   uint16_t portToTry = mPortOffset;
 
-  mServerConnections.push_back(std::make_shared<Socket>());
-
+  {
+    std::unique_lock<std::mutex> lk(mConnectionsLock);
+    mServerConnections.push_back(std::make_shared<Socket>());
+  }
   auto s = mServerConnections.back();
 
   while (portToTry++ < mPortOffset + maxPorts) {
@@ -121,6 +145,7 @@ bool NetworkBarrier::initClient(uint16_t serverPort, const char *serverAddr) {
 
   if (!s->opened()) {
     std::cerr << "Error opening client listener" << std::endl;
+    std::unique_lock<std::mutex> lk(mConnectionsLock);
     mServerConnections.resize(mServerConnections.size() - 1);
     return false;
   }
@@ -144,6 +169,8 @@ bool NetworkBarrier::initClient(uint16_t serverPort, const char *serverAddr) {
               clientHandlePing(connectionSocket);
             } else if (commandMessage[0] == 1 << COMMAND_PONG) {
               clientHandlePong(connectionSocket);
+            } else if (commandMessage[0] == 1 << COMMAND_SYNC_REQ) {
+              clientHandleSyncReq(connectionSocket);
             } else {
               std::cout << "Could not process command "
                         << (int)commandMessage[0] << std::endl;
@@ -155,6 +182,10 @@ bool NetworkBarrier::initClient(uint16_t serverPort, const char *serverAddr) {
         }
         connectionSocket.close();
         std::cout << "Client stopped " << std::endl;
+
+        std::unique_lock<std::mutex> lk(mConnectionsLock);
+        mServerConnections.erase(std::find(mServerConnections.begin(),
+                                           mServerConnections.end(), client));
       },
       s));
 
@@ -180,9 +211,12 @@ void NetworkBarrier::cleanup() {
   if (mServerThread) {
     mServerThread->join();
   }
+  mConnectionsLock.lock();
   for (auto connectionSocket : mServerConnections) {
     connectionSocket->close();
   }
+
+  mConnectionsLock.unlock();
   for (auto &connection : mConnectionThreads) {
     connection->join();
   }
@@ -196,6 +230,8 @@ bool NetworkBarrier::pingClients(double timeoutSecs) {
   }
 
   bool allResponded = true;
+
+  mConnectionsLock.lock();
   for (auto listener : mServerConnections) {
     std::cout << "pinging " << listener->address() << ":" << listener->port()
               << std::endl;
@@ -221,7 +257,56 @@ bool NetworkBarrier::pingClients(double timeoutSecs) {
     listener->timeout(previousTimeout);
   }
 
+  mConnectionsLock.unlock();
+
   return allResponded;
+}
+
+bool NetworkBarrier::synchronize(uint32_t id, double waitTimeoutSecs) {
+  if (mState == BarrierState::SERVER) {
+    mConnectionsLock.lock();
+    for (auto listener : mServerConnections) {
+      //      std::cout << "synchronizing " << listener->address() << ":"
+      //                << listener->port() << std::endl;
+      auto startTime = al_steady_time();
+      unsigned char message[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+      message[0] = 1 << COMMAND_SYNC_REQ;
+
+      auto b = Convert::to_bytes(id);
+      message[1] = b[0];
+      message[2] = b[1];
+      message[3] = b[2];
+      message[4] = b[3];
+      listener->send((const char *)message, 8);
+      size_t bytes = 0;
+      auto previousTimeout = listener->timeout();
+      listener->timeout(waitTimeoutSecs);
+      bytes = listener->recv((char *)message, 8);
+
+      auto endTime = al_steady_time();
+      if (bytes == 8) {
+        uint32_t id;
+        Convert::from_bytes((const uint8_t *)&message[1], id);
+
+        //        std::cout << "Synced: " << listener->address() << ":"
+        //                  << listener->port() << " id " << id << std::endl;
+      } else {
+        std::cout << "No response from: " << listener->address() << ":"
+                  << listener->port() << std::endl;
+      }
+      listener->timeout(previousTimeout);
+    }
+
+    mConnectionsLock.unlock();
+
+  } else if (mState == BarrierState::CLIENT) {
+    //    std::cout << "sync lock" << std::endl;
+    std::unique_lock<std::mutex> lk(mClientMessageLock);
+    mClientMessageCondition.wait(lk);
+    //    std::cout << "sync continue" << std::endl;
+  }
+  return false;
 }
 
 void NetworkBarrier::clientHandlePing(Socket &client) {
@@ -237,4 +322,20 @@ void NetworkBarrier::clientHandlePing(Socket &client) {
 
 void NetworkBarrier::clientHandlePong(Socket &client) {
   std::cout << "got pong request. Ignoring" << std::endl;
+}
+
+void NetworkBarrier::clientHandleSyncReq(Socket &client) {
+  char buffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  buffer[0] = 1 << COMMAND_SYNC_ACK;
+  //  std::cout << "sending sync ack" << std::endl;
+  int bytesSent = client.send((const char *)buffer, 8);
+  if (bytesSent != 8) {
+    std::cerr << "ERROR: sent bytes mismatch for sync ack" << std::endl;
+  }
+  std::unique_lock<std::mutex> lk(mClientMessageLock);
+  mClientMessageCondition.notify_one();
+}
+
+void NetworkBarrier::clientHandlSyncAck(Socket &client) {
+  std::cout << "got sync ack. Ignoring" << std::endl;
 }

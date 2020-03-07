@@ -18,7 +18,13 @@ namespace al {
 
 class NetworkBarrier {
  public:
-  enum { COMMAND_PING, COMMAND_PONG, COMMAND_HANDSHAKE };
+  enum {
+    COMMAND_PING,
+    COMMAND_PONG,
+    COMMAND_HANDSHAKE,
+    COMMAND_SYNC_REQ,
+    COMMAND_SYNC_ACK
+  };
 
   typedef enum { SERVER, CLIENT, NONE } BarrierState;
 
@@ -77,8 +83,10 @@ class NetworkBarrier {
 
   std::vector<std::unique_ptr<std::thread>> mConnectionThreads;
   std::vector<std::shared_ptr<Socket>> mServerConnections;
+  std::mutex mConnectionsLock;
 
   std::mutex mClientMessageLock;
+  std::condition_variable mClientMessageCondition;
 
   SingleRWRingBuffer mCommandSendBuffer;
 
@@ -89,8 +97,9 @@ class NetworkBarrier {
   uint16_t mPortOffset = 12000;
 
   void clientHandlePing(Socket &client);
-
   void clientHandlePong(Socket &client);
+  void clientHandleSyncReq(Socket &client);
+  void clientHandlSyncAck(Socket &client);
 };
 
 }  // namespace al
