@@ -6,6 +6,7 @@
 
 #include <cinttypes>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -17,13 +18,17 @@
 namespace al {
 
 class NetworkBarrier {
- public:
+public:
   enum {
     COMMAND_PING,
     COMMAND_PONG,
     COMMAND_HANDSHAKE,
+    COMMAND_TRIGGER,
     COMMAND_SYNC_REQ,
-    COMMAND_SYNC_ACK
+    COMMAND_SYNC_ACK,
+    COMMAND_BARRIER_LOCK,
+    COMMAND_BARRIER_UNLOCK,
+    COMMAND_SERVER_SHUTODOWN
   };
 
   typedef enum { SERVER, CLIENT, NONE } BarrierState;
@@ -47,12 +52,29 @@ class NetworkBarrier {
   bool pingClients(double timeoutSecs = 1.0);
 
   /**
+   * @brief Block and notify all nodes
+   *
+   * Primary will issue a network barrier command and wait for all nodes to
+   * receive the synchronize message. There is no wait for clients to
+   * acknowledge. Returns true of synchronized, false on timeout
+   */
+  bool trigger(uint32_t id = 0, double waitTimeoutSecs = 0.0);
+
+  /**
    * @brief Block and wait for all nodes to respond
    *
    * Primary will issue a network barrier command and wait for all nodes to
    * acknowledge. Returns true of synchronized, false on timeout
    */
   bool synchronize(uint32_t id = 0, double waitTimeoutSecs = 0.0);
+
+  /**
+   * @brief Block until connectionCount connections are established
+   * @return number of connections acquired during wait
+   */
+  uint16_t waitForConnections(uint16_t connectionCount, double timeout = 60.0);
+
+  size_t connectionCount();
 
   /**
    * @brief Block until received a wakeup signal
@@ -69,15 +91,13 @@ class NetworkBarrier {
    */
   bool signal(uint32_t id = 0, double waitTimeoutSecs = 0.0);
 
-  bool tickConsecutive(uint32_t id = 0);
-
   /**
    * @brief Resets this barrier and forces any pending sends or receives to be
    * cancelled
    */
   void reset();
 
- private:
+private:
   Socket mSocket;
   std::unique_ptr<std::thread> mServerThread;
 
@@ -85,8 +105,9 @@ class NetworkBarrier {
   std::vector<std::shared_ptr<Socket>> mServerConnections;
   std::mutex mConnectionsLock;
 
-  std::mutex mClientMessageLock;
-  std::condition_variable mClientMessageCondition;
+  std::map<uint32_t, std::pair<std::unique_ptr<std::mutex>,
+                               std::unique_ptr<std::condition_variable>>>
+      mClientMessageLock;
 
   SingleRWRingBuffer mCommandSendBuffer;
 
@@ -98,10 +119,12 @@ class NetworkBarrier {
 
   void clientHandlePing(Socket &client);
   void clientHandlePong(Socket &client);
-  void clientHandleSyncReq(Socket &client);
+  void clientHandleTrigger(Socket &client);
+  void clientHandleSyncReq(Socket &client, uint32_t id);
   void clientHandlSyncAck(Socket &client);
+  void clientHandleUnlock(Socket &client, uint32_t id);
 };
 
-}  // namespace al
+} // namespace al
 
-#endif  // AL_NETWORKBARRIER_HPP
+#endif // AL_NETWORKBARRIER_HPP
