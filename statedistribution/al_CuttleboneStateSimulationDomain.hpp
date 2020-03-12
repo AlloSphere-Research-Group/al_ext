@@ -25,40 +25,42 @@ static bool canUseCuttlebone() {
 #endif
 }
 
-template <class TSharedState>
+template <class TSharedState, unsigned PACKET_SIZE = 1400,
+          unsigned PORT = 63059>
 class CuttleboneStateSimulationDomain
     : public StateDistributionDomain<TSharedState> {
- public:
+public:
   virtual bool init(ComputationDomain *parent = nullptr) {
     return StateDistributionDomain<TSharedState>::init(parent);
   }
 
-  virtual std::shared_ptr<StateSendDomain<TSharedState>> addStateSender(
-      std::string id = "") {
-    auto newDomain =
-        this->template newSubDomain<CuttleboneSendDomain<TSharedState>>(false);
+  virtual std::shared_ptr<StateSendDomain<TSharedState>>
+  addStateSender(std::string id = "") {
+    auto newDomain = this->template newSubDomain<
+        CuttleboneSendDomain<TSharedState, PACKET_SIZE, PORT>>(false);
     newDomain->setId(id);
     newDomain->setStatePointer(this->statePtr());
     this->mIsSender = true;
     return newDomain;
   }
 
-  virtual std::shared_ptr<StateReceiveDomain<TSharedState>> addStateReceiver(
-      std::string id = "") {
-    auto newDomain =
-        this->template newSubDomain<CuttleboneReceiveDomain<TSharedState>>(
-            true);
+  virtual std::shared_ptr<StateReceiveDomain<TSharedState>>
+  addStateReceiver(std::string id = "") {
+    auto newDomain = this->template newSubDomain<
+        CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>>(true);
     newDomain->setId(id);
     newDomain->setStatePointer(this->statePtr());
     return newDomain;
   }
 
-  static std::shared_ptr<CuttleboneStateSimulationDomain<TSharedState>>
+  static std::shared_ptr<
+      CuttleboneStateSimulationDomain<TSharedState, PACKET_SIZE, PORT>>
   enableCuttlebone(DistributedAppWithState<TSharedState> *app) {
-    std::shared_ptr<CuttleboneStateSimulationDomain<TSharedState>> cbDomain =
-        app->graphicsDomain()
-            ->template newSubDomain<
-                CuttleboneStateSimulationDomain<TSharedState>>(true);
+    std::shared_ptr<
+        CuttleboneStateSimulationDomain<TSharedState, PACKET_SIZE, PORT>>
+        cbDomain = app->graphicsDomain()
+                       ->template newSubDomain<CuttleboneStateSimulationDomain<
+                           TSharedState, PACKET_SIZE, PORT>>(true);
     app->graphicsDomain()->removeSubDomain(app->simulationDomain());
     if (cbDomain) {
       //      cbDomain->A
@@ -91,6 +93,6 @@ class CuttleboneStateSimulationDomain
   }
 };
 
-}  // namespace al
+} // namespace al
 
-#endif  // INCLUDE_AL_CUTTLEBONEAPP_HPP
+#endif // INCLUDE_AL_CUTTLEBONEAPP_HPP
