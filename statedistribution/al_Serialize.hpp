@@ -45,6 +45,8 @@
 
 #include "al/graphics/al_Mesh.hpp"
 
+#include <cstring> // for memcpy in serialize() and deserialize()
+
 namespace al {
 namespace ser {
 
