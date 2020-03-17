@@ -15,6 +15,7 @@ include("../BuildExamples.cmake")
   set(THIS_EXTENSION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/al_CuttleboneStateSimulationDomain.hpp
     ${CMAKE_CURRENT_LIST_DIR}/al_CuttleboneDomain.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/al_NetworkBarrier.hpp
     ${CMAKE_CURRENT_LIST_DIR}/al_Serialize.hpp
   )
 

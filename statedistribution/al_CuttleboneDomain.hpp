@@ -1,6 +1,9 @@
 #ifndef CUTTLEBONEDOMAIN_H
 #define CUTTLEBONEDOMAIN_H
 
+/* Andres Cabrera, 2019, mantaraya36@gmail.com
+ */
+
 #include <cassert>
 #include <cstring>
 #include <functional>
