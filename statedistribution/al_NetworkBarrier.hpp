@@ -5,6 +5,7 @@
  */
 
 #include <cinttypes>
+#include <condition_variable>
 #include <iostream>
 #include <map>
 #include <memory>

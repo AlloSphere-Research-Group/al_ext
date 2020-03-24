@@ -3,16 +3,13 @@
 
 using namespace al;
 
-#include <WS2tcpip.h>
-#include <WinSock2.h>
-
 struct MyApp : DistributedApp {
   void onInit() override {
-    if (!barrier.initServer(10467, "0.0.0.0")) {
+    if (!barrier.initServer(10467, "127.0.0.1")) {
       std::cout << "Error initializing barrier" << std::endl;
       quit();
     }
-    al_sleep(1.0);  // Allow port to settle
+    al_sleep(1.0); // Allow port to settle
     if (!barrierClient1.initClient(10467, "localhost")) {
       std::cout << "Error opening client 1" << std::endl;
     }
