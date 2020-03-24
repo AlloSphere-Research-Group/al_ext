@@ -1,5 +1,6 @@
 #include "al_ext/statedistribution/al_NetworkBarrier.hpp"
 
+#include <algorithm>
 #include <array>
 
 using namespace al;
