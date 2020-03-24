@@ -156,7 +156,14 @@ bool NetworkBarrier::initClient(uint16_t serverPort, const char *serverAddr) {
   mConnectionThreads.emplace_back(std::make_unique<std::thread>(
       [&](std::shared_ptr<Socket> client) {
         Socket connectionSocket;
-        while (!client->accept(connectionSocket)) {
+        client->timeout(5);
+        connectionSocket.timeout(5);
+        while (mRunning && !client->accept(connectionSocket)) {
+          std::cout << "Waiting for server connection "
+                    << connectionSocket.port() << std::endl;
+        }
+        if (!mRunning) {
+          return;
         }
         std::cout << "Client listening port " << connectionSocket.port()
                   << std::endl;
@@ -194,8 +201,9 @@ bool NetworkBarrier::initClient(uint16_t serverPort, const char *serverAddr) {
         std::cout << "Client stopped " << std::endl;
         reset();
         std::unique_lock<std::mutex> lk(mConnectionsLock);
-        mServerConnections.erase(std::find(mServerConnections.begin(),
-                                           mServerConnections.end(), client));
+        mServerConnections.erase(std::find_if(
+            mServerConnections.begin(), mServerConnections.end(),
+            [&](std::shared_ptr<Socket> const &p) { return p == client; }));
       },
       s));
 
