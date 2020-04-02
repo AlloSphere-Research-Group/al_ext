@@ -10,6 +10,8 @@ include("../BuildExamples.cmake")
 
   set(THIS_EXTENSION_HEADERS
       ${CMAKE_CURRENT_LIST_DIR}/al_DataScript.hpp
+      ${CMAKE_CURRENT_LIST_DIR}/al_BufferManager.hpp
+      ${CMAKE_CURRENT_LIST_DIR}/al_DiskBuffer.hpp
       ${CMAKE_CURRENT_LIST_DIR}/al_DeferredComputation.hpp
       ${CMAKE_CURRENT_LIST_DIR}/al_PeriodicTask.hpp
       ${CMAKE_CURRENT_LIST_DIR}/al_VASPReader.hpp
