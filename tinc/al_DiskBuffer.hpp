@@ -14,20 +14,36 @@ namespace al {
 template <class DataType = nlohmann::json>
 class DiskBuffer : public BufferManager<DataType> {
 public:
-  DiskBuffer(std::string fileName, std::string path = "", uint16_t size = 2)
+  DiskBuffer(std::string name, std::string fileName = "", std::string path = "",
+             uint16_t size = 2)
       : BufferManager<DataType>(size) {
+    m_name = name;
+    // TODO there should be a check through a singleton to make sure names are
+    // unique
     m_fileName = fileName;
-    m_path = File::conformDirectory(path);
+    if (path.size() > 0) {
+      m_path = File::conformDirectory(path);
+    } else {
+      m_path = "";
+    }
   }
 
-  bool updateData() {
+  bool updateData(std::string filename = "") {
+    if (filename.size() > 0) {
+      m_fileName = filename;
+    }
     std::ifstream file(m_path + m_fileName);
     if (file.good()) {
       return parseFile(file, getWritable());
     } else {
+      std::cerr << "Error code: " << strerror(errno);
       return false;
     }
   }
+
+  // Careful, this is not thread safe. Needs to be called synchronously to any
+  // process functions
+  std::string getCurrentFileName() { return m_fileName; }
 
   virtual bool parseFile(std::ifstream &file,
                          std::shared_ptr<DataType> newData) {
@@ -43,14 +59,14 @@ public:
       std::cerr << "ERROR: already registered. Aborting." << std::endl;
       return;
     }
-    std::string pathPrefix = "/__DiskBuffer";
-    if (m_fileName[0] != '/') {
-      pathPrefix += "/";
-    }
-    m_trigger = std::make_shared<Trigger>(pathPrefix + m_fileName);
+    std::string pathPrefix = "/__DiskBuffer/";
+    //    if (m_fileName[0] != '/') {
+    //      pathPrefix += "/";
+    //    }
+    m_trigger = std::make_shared<ParameterString>(pathPrefix + m_name);
     p.registerParameter(*m_trigger);
     m_trigger->registerChangeCallback(
-        [this](float value) { this->updateData(); });
+        [this](std::string value) { this->updateData(value); });
     // There will be problems if this object is destroyed before the parameter
     // server Should this be a concern?
   }
@@ -61,8 +77,9 @@ private:
   using BufferManager<DataType>::getWritable;
 
   std::string m_fileName;
+  std::string m_name;
   std::string m_path;
-  std::shared_ptr<Trigger> m_trigger;
+  std::shared_ptr<ParameterString> m_trigger;
 };
 } // namespace al
 

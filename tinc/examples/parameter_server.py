@@ -6,22 +6,27 @@ import time
 from typing import List, Any
 
 class AppConnection(object):
-    def __init__(self):
-        self.handshakeServerPort = 16987
-        self.listenerFirstPort = 14000
-        self.client = udp_client.SimpleUDPClient("127.0.0.1", self.handshakeServerPort)
+    def __init__(self, pserver_port : int, handshake_server_addr: str = "127.0.0.1",
+                 handshake_server_port: int = 16987, listener_first_port: int = 14000):
+        
+        self.pserver_port = pserver_port
+        self.handshakeServerAddr = handshake_server_addr
+        self.handshakeServerPort = handshake_server_port
+        self.listenerFirstPort = listener_first_port
+        self.client = udp_client.SimpleUDPClient(self.handshakeServerAddr, self.handshakeServerPort)
         
         self.d = dispatcher.Dispatcher()
         self.d.map("/requestListenerInfo", self.register_handler)
         self.d.map("/*", self.message_handler)
+        self.start()
         
-        self.pserver = ParameterServer("localhost", 9011)
-
+    def __del__(self):
+        self.stop()
         
     def start(self):
 
         self.running = True
-        self.x = threading.Thread(target=self.server_thread_function, args=("localhost", self.listenerFirstPort))
+        self.x = threading.Thread(target=self.server_thread_function, args=(self.handshakeServerAddr, self.listenerFirstPort))
         self.x.start()
         
         time.sleep(0.1)
@@ -29,19 +34,19 @@ class AppConnection(object):
         
     def stop(self):
         if self.running:
-            self.pserver.stop()
             self.running = False
             self.x.join()
             self.server = None
 
     def register_handler(self, address: str, *args: List[Any]):
         print("Registering listener")
-        self.client.send_message("/registerListener", self.pserver.port)
+        self.client.send_message("/registerListener", self.pserver_port)
 
     def message_handler(self, address: str, *args: List[Any]):
         print("Unhandled command [{0}] ~ {1}".format(address, args[0]))
 
     def server_thread_function(self, ip: str, port: int):
+        print("Starting on port " + str(port))
         self.server = osc_server.ThreadingOSCUDPServer(
           (ip, port), self.d)
         self.server.timeout = 0.1
@@ -84,21 +89,28 @@ class Parameter(object):
         return addr
 
 class ParameterServer(object):
-    def __init__(self, ip: str = "localhost", port: int = 9010):
-        self.port = port
+    def __init__(self, ip: str = "localhost", start_port: int = 9011):
+        self.ip = ip
+        self.port = start_port
         self.parameters = []
         self.listeners = []
         self.dispatcher = dispatcher.Dispatcher()
-        self.start(ip, port)
         
-    def start(self, ip: str = "localhost", port: int = 9010):
+        self.start()
+        
+        self.app_connection = AppConnection(self.port)
+        
+    def __del__(self):
+        self.stop()
+        
+    def start(self):
         self.running = True
-        self.x = threading.Thread(target=self.server_thread_function, args=(ip, port))
+        self.x = threading.Thread(target=self.server_thread_function, args=(self.ip, self.port))
         self.x.start()
         
     def stop(self):
+        self.app_connection.stop()
         self.running = False
-#         self.server.stop()
         self.x.join()
         
     def monitor_server(self, timeout: float = 30):

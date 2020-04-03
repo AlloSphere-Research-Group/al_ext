@@ -6,17 +6,18 @@
 using namespace al;
 
 struct TincApp : DistributedApp {
-  DiskBuffer<> dataBuffer{"output.json"};
-  DiskBuffer<> dataBuffer2{"background.json"};
+  DiskBuffer<> dataBuffer{"sine_data", "output.json"};
+  DiskBuffer<> dataBuffer2{"background", "background.json"};
 
   std::string textString;
-  Color bgColor;
+  std::string currentFile;
+  Color bgColor{0.4};
   VAOMesh mesh;
 
   void onInit() override {
     dataBuffer.exposeToNetwork(parameterServer());
     dataBuffer2.exposeToNetwork(parameterServer());
-    //    parameterServer().verbose();
+    parameterServer().verbose();
   }
 
   void onAnimate(double dt) override {
@@ -43,6 +44,7 @@ struct TincApp : DistributedApp {
         auto bgList = dataBuffer2.get()->get<std::vector<float>>();
         bgColor = Color(bgList[0], bgList[1], bgList[2]);
       }
+      currentFile = dataBuffer2.getCurrentFileName();
     }
   }
 
@@ -50,6 +52,9 @@ struct TincApp : DistributedApp {
     g.clear(bgColor);
 
     FontRenderer::render(g, textString.c_str(), {-1, -0.5, -4}, 0.1);
+
+    FontRenderer::render(g, currentFile.c_str(), {-1, -0.7, -4}, 0.1);
+
     g.color(1.0);
     g.draw(mesh);
   }
