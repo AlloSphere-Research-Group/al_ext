@@ -6,10 +6,10 @@ import time
 from typing import List, Any
 
 class AppConnection(object):
-    def __init__(self, pserver_port : int, handshake_server_addr: str = "127.0.0.1",
-                 handshake_server_port: int = 16987, listener_first_port: int = 14000):
+    def __init__(self, pserver, handshake_server_addr: str = "127.0.0.1",
+                 handshake_server_port: int = 16987, listener_first_port: int = 14001):
         
-        self.pserver_port = pserver_port
+        self.pserver = pserver
         self.handshakeServerAddr = handshake_server_addr
         self.handshakeServerPort = handshake_server_port
         self.listenerFirstPort = listener_first_port
@@ -17,6 +17,7 @@ class AppConnection(object):
         
         self.d = dispatcher.Dispatcher()
         self.d.map("/requestListenerInfo", self.register_handler)
+        self.d.map("/registerListener", self.register_listener)
         self.d.map("/*", self.message_handler)
         self.start()
         
@@ -38,15 +39,24 @@ class AppConnection(object):
             self.x.join()
             self.server = None
 
+    def get_listener_info(self):
+        PRINT("LISTENER INFO")
+        pass;
+        
+            
     def register_handler(self, address: str, *args: List[Any]):
-        print("Registering listener")
-        self.client.send_message("/registerListener", self.pserver_port)
-
+        print("Sending registering as listener request")
+        self.client.send_message("/registerListener", self.pserver.port)
+        self.client.send_message("/requestListenerInfo", [self.handshakeServerAddr, self.listenerFirstPort])
+        
+    def register_listener(self, address: str, *args: List[Any]):
+        self.pserver.add_listener(args[0], args[1])
+        
     def message_handler(self, address: str, *args: List[Any]):
         print("Unhandled command [{0}] ~ {1}".format(address, args[0]))
 
     def server_thread_function(self, ip: str, port: int):
-        print("Starting on port " + str(port))
+#         print("Starting on port " + str(port))
         self.server = osc_server.ThreadingOSCUDPServer(
           (ip, port), self.d)
         self.server.timeout = 0.1
@@ -98,7 +108,8 @@ class ParameterServer(object):
         
         self.start()
         
-        self.app_connection = AppConnection(self.port)
+        self.app_connection = AppConnection(self)
+        
         
     def __del__(self):
         self.stop()
@@ -138,7 +149,7 @@ class ParameterServer(object):
 #         print("got parameter message " + str(addr) + str(args))
         
     def add_listener(self, ip: str, port: int):
-        
+        print("Register listener " + ip + ":" + str(port))
         self.listeners.append(udp_client.SimpleUDPClient(ip, port))
         
     def server_thread_function(self, ip: str, port: int):
