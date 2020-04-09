@@ -84,6 +84,7 @@ class Parameter(object):
         
         self._interactive_widget = None
         self.observers = []
+        self._value_callbacks = []
         
     @property
     def value(self):
@@ -98,7 +99,7 @@ class Parameter(object):
         # we don't relay repetitions. This stops feedback,
         # but means if this is the primary app, some things
         # might not work as expected.
-        print("Got " + str(value))
+#         print("Got " + str(value))
         if not self._value == value:
             self._value = value
             for o in self.observers:
@@ -106,11 +107,15 @@ class Parameter(object):
 
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = value
+        for cb in self._value_callbacks:
+            cb(value)
         
     def set_from_internal_widget(self, value):
         self._value = value
         for o in self.observers:
             o.send_parameter_value(self)
+        for cb in self._value_callbacks:
+            cb(value)
         
     def get_full_address(self):
         # TODO sanitize names
@@ -136,6 +141,10 @@ class Parameter(object):
                 readout_format='.3f',
             ));
         return self._interactive_widget
+    
+    def register_callback(self, f):
+        self._value_callbacks.append(f)
+        
 
 class ParameterServer(object):
     def __init__(self, ip: str = "localhost", start_port: int = 9011):
