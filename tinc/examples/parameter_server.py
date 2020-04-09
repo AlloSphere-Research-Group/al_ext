@@ -5,6 +5,12 @@ import threading
 import time
 from typing import List, Any
 
+try:
+    from ipywidgets import interact, interactive, interact_manual
+    import ipywidgets as widgets
+except:
+    print("Error importin ipywidgets. Notebook widgets not available")
+
 class AppConnection(object):
     def __init__(self, pserver, handshake_server_addr: str = "127.0.0.1",
                  handshake_server_port: int = 16987, listener_first_port: int = 14001):
@@ -18,7 +24,7 @@ class AppConnection(object):
         self.d = dispatcher.Dispatcher()
         self.d.map("/requestListenerInfo", self.register_handler)
         self.d.map("/registerListener", self.register_listener)
-        self.d.map("/*", self.message_handler)
+#         self.d.map("/*", self.message_handler)
         self.start()
         
     def __del__(self):
@@ -46,14 +52,14 @@ class AppConnection(object):
             
     def register_handler(self, address: str, *args: List[Any]):
         print("Sending registering as listener request")
-        self.client.send_message("/registerListener", self.pserver.port)
-        self.client.send_message("/requestListenerInfo", [self.handshakeServerAddr, self.listenerFirstPort])
+        self.client.send_message("/registerListener", (self.pserver.ip, self.pserver.port))
+        self.client.send_message("/requestListenerInfo", (self.handshakeServerAddr, self.listenerFirstPort))
         
     def register_listener(self, address: str, *args: List[Any]):
         self.pserver.add_listener(args[0], args[1])
         
-    def message_handler(self, address: str, *args: List[Any]):
-        print("Unhandled command [{0}] ~ {1}".format(address, args[0]))
+#     def message_handler(self, address: str, *args: List[Any]):
+#         print("Unhandled command [{0}] ~ {1}".format(address, args[0]))
 
     def server_thread_function(self, ip: str, port: int):
 #         print("Starting on port " + str(port))
@@ -76,6 +82,7 @@ class Parameter(object):
         self.minimum = minimum
         self.maximum = maximum
         
+        self._interactive_widget = None
         self.observers = []
         
     @property
@@ -84,6 +91,23 @@ class Parameter(object):
 
     @value.setter
     def value(self, value):
+        self.set_value(value)
+            
+    def set_value(self, value):
+        # This assumes we are never primary application, and
+        # we don't relay repetitions. This stops feedback,
+        # but means if this is the primary app, some things
+        # might not work as expected.
+        print("Got " + str(value))
+        if not self._value == value:
+            self._value = value
+            for o in self.observers:
+                o.send_parameter_value(self)
+
+            if self._interactive_widget:
+                self._interactive_widget.children[0].value = value
+        
+    def set_from_internal_widget(self, value):
         self._value = value
         for o in self.observers:
             o.send_parameter_value(self)
@@ -97,6 +121,21 @@ class Parameter(object):
             addr += self.group + "/"
         addr += self.name    
         return addr
+    
+    def interactive_widget(self):
+        self._interactive_widget = interactive(self.set_from_internal_widget,
+                value=widgets.FloatSlider(
+                value=self._value,
+                min=self.minimum,
+                max=self.maximum,
+                description=self.name,
+                disabled=False,
+                continuous_update=True,
+                orientation='horizontal',
+                readout=True,
+                readout_format='.3f',
+            ));
+        return self._interactive_widget
 
 class ParameterServer(object):
     def __init__(self, ip: str = "localhost", start_port: int = 9011):
