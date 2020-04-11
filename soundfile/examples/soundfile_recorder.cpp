@@ -15,7 +15,7 @@ struct MyApp : public App {
   SoundFileBufferedRecord soundFile;
   gam::Sine<> wave{440.0f};
 
-  void onInit() {
+  void onInit() override {
     // Set Gamma sampling rate. Needed for the gam::Square oscillator
     gam::sampleRate(audioIO().framesPerSecond());
 
@@ -35,7 +35,7 @@ struct MyApp : public App {
       // Write the signal to the output
       float waveValue = wave() * 0.5f;
       io.out(0) = waveValue;
-      io.out(1) = -waveValue;  // Phase inverted
+      io.out(1) = -waveValue; // Phase inverted
     }
     // write the output buffers to the soundfile
     soundFile.write({io.outBuffer(0), io.outBuffer(1)}, io.framesPerBuffer());

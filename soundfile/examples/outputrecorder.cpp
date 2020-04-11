@@ -14,7 +14,7 @@ using namespace al;
 struct MyApp : public App {
   OutputRecorder recorder;
 
-  void onInit() {
+  void onInit() override {
     if (audioIO().channelsIn() == 0) {
       std::cout << "**** ERROR: Could not open audio input. Quitting."
                 << std::endl;
@@ -38,7 +38,7 @@ struct MyApp : public App {
     // Output will be recorded to the file after this
   }
 
-  void onExit() { recorder.close(); }
+  void onExit() override { recorder.close(); }
 };
 
 int main(int argc, char *argv[]) {
