@@ -73,8 +73,9 @@ class AppConnection(object):
 
 
 class Parameter(object):
-    def __init__(self, name: str, group: str, default: float, prefix: str = "", minimum: float = -99999.0, maximum: float = 99999.0):
-        self._value :str = 0.0
+    def __init__(self, name: str, group: str = "", default: float = 0.0, prefix: str = "", minimum: float = -99999.0, maximum: float = 99999.0):
+        self._value:float = default
+        self._data_type = float
         self.name = name
         self.group = group
         self.default = default
@@ -94,19 +95,19 @@ class Parameter(object):
     def value(self, value):
         self.set_value(value)
             
-    def set_value(self, value):
+    def set_value(self, value, source_address=None):
         # This assumes we are never primary application, and
         # we don't relay repetitions. This stops feedback,
         # but means if this is the primary app, some things
         # might not work as expected.
 #         print("Got " + str(value))
         if not self._value == value:
-            self._value = value
+            self._value = self._data_type(value)
             for o in self.observers:
-                o.send_parameter_value(self)
+                o.send_parameter_value(self, source_address)
 
             if self._interactive_widget:
-                self._interactive_widget.children[0].value = value
+                self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
             cb(value)
         
@@ -142,9 +143,34 @@ class Parameter(object):
             ));
         return self._interactive_widget
     
-    def register_callback(self, f):
+    def register_callback(self, f): 
         self._value_callbacks.append(f)
         
+class ParameterString(Parameter):
+    def __init__(self, name: str, group: str = "", default: str = "", prefix: str = ""):
+        self._value :str = default
+        self._data_type = str
+        self.name = name
+        self.group = group
+        self.default = default
+        self.prefix = prefix
+        
+        self._interactive_widget = None
+        self.observers = []
+        self._value_callbacks = []
+        
+    def interactive_widget(self):
+        self._interactive_widget = interactive(self.set_from_internal_widget,
+                value=widgets.Textarea(
+                value=self._value,
+                description=self.name,
+                disabled=False,
+                continuous_update=True,
+#                 orientation='horizontal',
+                readout=True,
+#                 readout_format='.3f',
+            ));
+        return self._interactive_widget
 
 class ParameterServer(object):
     def __init__(self, ip: str = "localhost", start_port: int = 9011):
@@ -183,17 +209,19 @@ class ParameterServer(object):
         p.observers.append(self)
         self.parameters.append(p)
         
-        self.dispatcher.map(p.get_full_address(), self.set_parameter_value, p)
+        self.dispatcher.map(p.get_full_address(), self.set_parameter_value, p,
+                           needs_reply_address = True)
         
         
     def register_parameters(self, params):
         for p in params:
             self.register_parameter(p)
         
-    def set_parameter_value(self, addr, p: str, *args):
+    def set_parameter_value(self, client_address, addr, p: str, *args):
         # TODO there should be a way to select whether to relay duplicates or not, perhaps depending on a role
-        if not p[0].value == args[0]:
-            p[0].value = args[0]
+        p[0].set_value(args[0], client_address)
+#         if not p[0].value == args[0]:
+#             p[0].value = args[0]
 #         print("got parameter message " + str(addr) + str(args))
         
     def add_listener(self, ip: str, port: int):
@@ -211,8 +239,16 @@ class ParameterServer(object):
         self.server.server_close()
         print("Closed parameter server")
         
-    def send_parameter_value(self, p):
+    def send_parameter_value(self, p, source_address):
         for l in self.listeners:
-#             print("Sending " + p.get_full_address())
-            l.send_message(p.get_full_address(), float(p.value))
+            print("Sending " + p.get_full_address() + " from " + str(source_address))
+            print("Sending to " + l._address)
+            if not source_address:
+                l.send_message(p.get_full_address(), p.value)
+            elif not source_address[0] == l._address:
+                l.send_message(p.get_full_address(), p.value)
+            else:
+                print("Blocked return message for " + source_address[0])
+                pass
+            
         

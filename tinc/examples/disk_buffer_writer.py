@@ -19,7 +19,7 @@ class DiskBufferWriter(object):
         self._file_lock:bool = False
         pass
     
-    def cleanup(self):
+    def cleanup_cache(self):
         prefix, suffix = self._get_file_components()
         files = [f for f in os.listdir(self._path) if re.match(prefix + '(_[0-9]+)?' + suffix + '(.lock)?', f)]
         for f in files:
@@ -54,20 +54,13 @@ class DiskBufferWriter(object):
         
         # TODO implement file lock
         
-        outname = self._filename
-        
-        if self._cache_size >=0:
-            if self._cache_size > 0 and self._cache_counter == self._cache_size:
-                self._cache_counter = 0
-            outname = self._make_filename(self._cache_counter)
-            self._cache_counter += 1
-
+        outname = self._make_next_filename()
         
         if self._file_lock:
-            lock = FileLock(self._path + outname + ".lock", timeout=1)
-            if lock.is_locked:
+            self._lock = FileLock(self._path + outname + ".lock", timeout=1)
+            if self._lock.is_locked:
                 print("Locked " + outname)
-            lock.acquire()
+            self._lock.acquire()
         with open(self._path + outname, 'w') as outfile:
             json.dump(data, outfile)
         
@@ -80,10 +73,46 @@ class DiskBufferWriter(object):
     
         
         if self._file_lock:
-            lock.release()
+            self._lock.release()
+            
+    def get_filename_for_writing(self):
+        
+        if self._file_lock:
+            if self._lock:
+                print("Error, file is locked")
+                return ''
+            
+            self.outname = self._make_next_filename()
+            self._lock = FileLock(self._path + outname + ".lock", timeout=1)
+            if self._lock.is_locked:
+                print("Locked " + outname)
+            self._lock.acquire()
+        else:
+            self.outname = self._make_next_filename()
+        return self._path + self.outname
+    
+    def done_writing_file(self):
+        for l in self.pserver.listeners:
+            address = "/__DiskBuffer/" + self.name
+            
+#             print('sending ' + address)
+#             print(l.__dict__)
+            l.send_message(address, self.outname)
+        if self._file_lock:
+            self._lock.release()
             
     def expose_to_network(self, pserver: ParameterServer):
         self.pserver = pserver
+        
+    def _make_next_filename(self):
+        outname = self._filename
+        
+        if self._cache_size >=0:
+            if self._cache_size > 0 and self._cache_counter == self._cache_size:
+                self._cache_counter = 0
+            outname = self._make_filename(self._cache_counter)
+            self._cache_counter += 1
+        return outname
         
     def _make_filename(self, index):
         prefix, suffix = self._get_file_components()
@@ -100,3 +129,5 @@ class DiskBufferWriter(object):
             prefix = outname
             suffix = ''
         return [prefix, suffix]
+    
+    
