@@ -20,10 +20,17 @@ class AppConnection(object):
         self.handshakeServerPort = handshake_server_port
         self.listenerFirstPort = listener_first_port
         self.client = udp_client.SimpleUDPClient(self.handshakeServerAddr, self.handshakeServerPort)
+        self.connected = False
+        self.server = None
         
         self.d = dispatcher.Dispatcher()
-        self.d.map("/requestListenerInfo", self.register_handler)
-        self.d.map("/registerListener", self.register_listener)
+        self.d.map("/requestListenerInfo", self.send_listener_info,
+                           needs_reply_address = True)
+        self.d.map("/registerListener", self.register_listener,
+                           needs_reply_address = True)
+        self.d.map("/registerParameter", self.register_parameter,
+                           needs_reply_address = True)
+        self.d.map("/quit", self.quit_message)
 #         self.d.map("/*", self.message_handler)
         self.start()
         
@@ -36,39 +43,71 @@ class AppConnection(object):
         self.x = threading.Thread(target=self.server_thread_function, args=(self.handshakeServerAddr, self.listenerFirstPort))
         self.x.start()
         
-        time.sleep(0.1)
-        self.client.send_message("/handshake", self.listenerFirstPort)
-        
     def stop(self):
         if self.running:
             self.running = False
             self.x.join()
             self.server = None
+            self.connected = False
 
     def get_listener_info(self):
-        PRINT("LISTENER INFO")
-        pass;
+        print("LISTENER INFO")
+        pass
         
-            
-    def register_handler(self, address: str, *args: List[Any]):
-        print("Sending registering as listener request")
+    # OSC Message handling 
+    def send_listener_info(self, client_address: str, address: str, *args: List[Any]):
+        print("Got /requestListenerInfo from " + str(client_address))
         self.client.send_message("/registerListener", (self.pserver.ip, self.pserver.port))
         self.client.send_message("/requestListenerInfo", (self.handshakeServerAddr, self.listenerFirstPort))
+        self.connected = True
         
-    def register_listener(self, address: str, *args: List[Any]):
+    def register_listener(self, client_address: str , address: str, *args: List[Any]):
         self.pserver.add_listener(args[0], args[1])
+        
+    def register_parameter(self, client_address: str , address: str, *args: List[Any]):
+
+        name, group, default, prefix, minimum, maximum = args
+        if type(default) == float:
+            new_param = Parameter(name, group, default, prefix, minimum, maximum)
+        elif type(default) == str:
+            new_param = ParameterString(name, group, default, prefix)
+        elif type(default) == int:
+            new_param = ParameterInt(name, group, default, prefix, minimum, maximum)
+            
+        for p in self.pserver.parameters:
+            if p.get_full_address() == new_param.get_full_address():
+                print(f"Parameter {args[0]} already registered")
+                return
+        print(f"Registered parameter {args[0]} from {client_address}")
+        self.pserver.register_parameter(new_param)
         
 #     def message_handler(self, address: str, *args: List[Any]):
 #         print("Unhandled command [{0}] ~ {1}".format(address, args[0]))
 
+    def quit_message(self, client_address, address: str, *args: List[Any]):
+        print("Got /quit message, closing parameter server")
+        self.stop()
+    
+    def request_parameters(self):
+        self.client.send_message("/sendParametersMeta", (self.handshakeServerAddr, self.listenerFirstPort))
+        
+    def request_all_parameter_values(self):
+        self.client.send_message("/sendAllParameters", (self.pserver.ip, self.pserver.port))
+        
+
+    # Server ---------------
     def server_thread_function(self, ip: str, port: int):
 #         print("Starting on port " + str(port))
         self.server = osc_server.ThreadingOSCUDPServer(
           (ip, port), self.d)
         self.server.timeout = 0.1
-        print("Serving on {}".format(self.server.server_address))
+        print("Command server: Serving on {}".format(self.server.server_address))
         while self.running:
+            if not self.connected:
+                self.client.send_message("/handshake", self.listenerFirstPort)
+                time.sleep(0.3)
             self.server.handle_request()
+        self.client.send_message("/goodbye", (self.handshakeServerAddr, self.listenerFirstPort))
         print("Closed command server")
 
 
@@ -143,7 +182,13 @@ class Parameter(object):
             ));
         return self._interactive_widget
     
-    def register_callback(self, f): 
+    def register_callback(self, f):
+        for i,cb in enumerate(self._value_callbacks):
+            if f.__name__ == cb.__name__:
+                print("Replacing previously registered callback")
+                self._value_callbacks[i] = f
+                return
+                
         self._value_callbacks.append(f)
         
 class ParameterString(Parameter):
@@ -171,6 +216,35 @@ class ParameterString(Parameter):
 #                 readout_format='.3f',
             ));
         return self._interactive_widget
+    
+
+class ParameterInt(Parameter):
+    def __init__(self, name: str, group: str = "", default: int = 0, prefix: str = "", minimum: int = 0, maximum: int = 127):
+        self._value :int = default
+        self._data_type = int
+        self.name = name
+        self.group = group
+        self.default = default
+        self.prefix = prefix
+        self.minimum = minimum
+        self.maximum = maximum
+        
+        self._interactive_widget = None
+        self.observers = []
+        self._value_callbacks = []
+        
+#     def interactive_widget(self):
+#         self._interactive_widget = interactive(self.set_from_internal_widget,
+#                 value=widgets.Textarea(
+#                 value=self._value,
+#                 description=self.name,
+#                 disabled=False,
+#                 continuous_update=True,
+# #                 orientation='horizontal',
+#                 readout=True,
+# #                 readout_format='.3f',
+#             ));
+#         return self._interactive_widget
 
 class ParameterServer(object):
     def __init__(self, ip: str = "localhost", start_port: int = 9011):
@@ -182,9 +256,6 @@ class ParameterServer(object):
         
         self.start()
         
-        self.app_connection = AppConnection(self)
-        
-        
     def __del__(self):
         self.stop()
         
@@ -192,12 +263,41 @@ class ParameterServer(object):
         self.running = True
         self.x = threading.Thread(target=self.server_thread_function, args=(self.ip, self.port))
         self.x.start()
+        self.app_connection = AppConnection(self)
         
     def stop(self):
         self.app_connection.stop()
         self.running = False
         self.x.join()
         
+        self.app_connection = None
+        
+    def print(self):
+        if not self.running:
+            print("Parameter server not running. Use start()")
+            return
+        print(f"Parameter Server running at {self.ip}:{self.port}")
+        if self.app_connection.server:
+            print(f"Command Server at {self.app_connection.server.server_address}")
+            if self.app_connection.connected:
+                print("APP CONNECTED")
+            elif self.app_connection.running:
+                print("Attempting to connect to app.")
+            else:
+                print("NOT RUNNING")
+        else:
+            print("App command server not available.")
+        if len(self.listeners) > 0:
+            print(' --- Listeners ---')
+            for l in self.listeners:
+                print(f'{l._address}:{l._port}')
+        if len(self.parameters) > 0:
+            print(' --- Parameters ---')
+            for p in self.parameters:
+                print(f'{p.get_full_address()} -- {str(p.value)}')
+                for c in p._value_callbacks:
+                    print(f'callback:  {c.__name__}')
+    
     def monitor_server(self, timeout: float = 30):
         timeAccum = 0.0
         while timeAccum < timeout or timeout == 0:
@@ -216,6 +316,12 @@ class ParameterServer(object):
     def register_parameters(self, params):
         for p in params:
             self.register_parameter(p)
+            
+    def request_all_parameter_values(self):
+        self.app_connection.request_all_parameter_values()
+    
+    def request_parameters(self):
+        self.app_connection.request_parameters()
         
     def set_parameter_value(self, client_address, addr, p: str, *args):
         # TODO there should be a way to select whether to relay duplicates or not, perhaps depending on a role
@@ -226,6 +332,10 @@ class ParameterServer(object):
         
     def add_listener(self, ip: str, port: int):
         print("Register listener " + ip + ":" + str(port))
+        for l in self.listeners:
+            if l._address == ip and l._port == port:
+                print("Already registered ignoring request.")
+                return
         self.listeners.append(udp_client.SimpleUDPClient(ip, port))
         
     def server_thread_function(self, ip: str, port: int):
