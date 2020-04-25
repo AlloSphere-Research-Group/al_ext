@@ -81,12 +81,15 @@ protected:
   std::shared_ptr<ParameterString> m_trigger;
 };
 
-template <class DataType = nlohmann::json>
-class DiskBuffer : public DiskBufferAbstract<DataType> {
+class JsonDiskBuffer : public DiskBufferAbstract<nlohmann::json> {
+public:
+  JsonDiskBuffer(std::string name, std::string fileName = "",
+                 std::string path = "", uint16_t size = 2)
+      : DiskBufferAbstract<nlohmann::json>(name, fileName, path, size) {}
 
 protected:
   virtual bool parseFile(std::ifstream &file,
-                         std::shared_ptr<DataType> newData) {
+                         std::shared_ptr<nlohmann::json> newData) {
 
     //    try {
     *newData = nlohmann::json::parse(file);

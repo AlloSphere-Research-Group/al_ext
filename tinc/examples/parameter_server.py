@@ -73,7 +73,7 @@ class AppConnection(object):
             new_param = ParameterString(name, group, default, prefix)
         elif type(default) == int:
             new_param = ParameterInt(name, group, default, prefix, minimum, maximum)
-            
+
         for p in self.pserver.parameters:
             if p.get_full_address() == new_param.get_full_address():
                 print(f"Parameter {args[0]} already registered")
@@ -153,7 +153,7 @@ class Parameter(object):
     def set_from_internal_widget(self, value):
         self._value = value
         for o in self.observers:
-            o.send_parameter_value(self)
+            o.send_parameter_value(self, None)
         for cb in self._value_callbacks:
             cb(value)
         
@@ -311,8 +311,14 @@ class ParameterServer(object):
         
         self.dispatcher.map(p.get_full_address(), self.set_parameter_value, p,
                            needs_reply_address = True)
-        
-        
+            
+    def get_parameter(self, name):
+        for p in self.parameters:
+            if p.name == name:
+                return p
+            
+        return None
+    
     def register_parameters(self, params):
         for p in params:
             self.register_parameter(p)
@@ -328,7 +334,7 @@ class ParameterServer(object):
         p[0].set_value(args[0], client_address)
 #         if not p[0].value == args[0]:
 #             p[0].value = args[0]
-#         print("got parameter message " + str(addr) + str(args))
+        print("got parameter message " + str(addr) + str(args))
         
     def add_listener(self, ip: str, port: int):
         print("Register listener " + ip + ":" + str(port))

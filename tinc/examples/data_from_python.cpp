@@ -6,8 +6,8 @@
 using namespace al;
 
 struct TincApp : DistributedApp {
-  DiskBuffer<> backgroundBuffer{"background", "background.json"};
-  DiskBuffer<> dataBuffer{"sine_data", "output.json"};
+  JsonDiskBuffer backgroundBuffer{"background", "background.json"};
+  JsonDiskBuffer dataBuffer{"sine_data", "output.json"};
 
   // Local data that will be filled from disk buffer
   std::string textString;
