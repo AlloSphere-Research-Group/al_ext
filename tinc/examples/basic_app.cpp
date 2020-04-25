@@ -7,13 +7,14 @@ using namespace al;
 struct TincApp : DistributedApp {
   Parameter value{"value", "", 0.0, "", 0.0, 1.0};
   ParameterString stringParam{"string", "", "default value"};
+  ParameterInt intValue{"int"};
   Trigger resetString{"ResetString"};
   ControlGUI gui;
 
   void onCreate() {
     gui.init();
-    gui << value << stringParam << resetString;
-    parameterServer() << value << stringParam;
+    gui << value << stringParam << resetString << intValue;
+    parameterServer() << value << stringParam << intValue;
     parameterServer().print();
     parameterServer().verbose();
 
