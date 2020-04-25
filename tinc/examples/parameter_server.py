@@ -311,14 +311,14 @@ class ParameterServer(object):
         
         self.dispatcher.map(p.get_full_address(), self.set_parameter_value, p,
                            needs_reply_address = True)
-            
+
     def get_parameter(self, name):
         for p in self.parameters:
             if p.name == name:
                 return p
             
         return None
-    
+
     def register_parameters(self, params):
         for p in params:
             self.register_parameter(p)
