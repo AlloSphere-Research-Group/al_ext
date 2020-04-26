@@ -12,6 +12,8 @@ class DiskBufferWriter(object):
         self.name:str = name
         self._filename:str = filename
         self._path:str = path
+        if not os.path.exists(path):
+            os.makedirs(path)
         
         self._cache_size:int  = -1
         self._cache_counter: int = 0
@@ -21,9 +23,10 @@ class DiskBufferWriter(object):
     
     def cleanup_cache(self):
         prefix, suffix = self._get_file_components()
-        files = [f for f in os.listdir(self._path) if re.match(prefix + '(_[0-9]+)?' + suffix + '(.lock)?', f)]
-        for f in files:
-            os.remove(self._path + f)
+        if os.path.exists(self._path):
+            files = [f for f in os.listdir(self._path) if re.match(prefix + '(_[0-9]+)?' + suffix + '(.lock)?', f)]
+            for f in files:
+                    os.remove(self._path + f)
     
     def allow_cache(self, cache_size: int = 0):
         # 0 is unlimited cache
@@ -76,28 +79,35 @@ class DiskBufferWriter(object):
             self._lock.release()
             
     def get_filename_for_writing(self):
-        
+        outname = ''
         if self._file_lock:
             if self._lock:
                 print("Error, file is locked")
                 return ''
             
-            self.outname = self._make_next_filename()
+            outname = self._make_next_filename()
             self._lock = FileLock(self._path + outname + ".lock", timeout=1)
             if self._lock.is_locked:
                 print("Locked " + outname)
             self._lock.acquire()
         else:
-            self.outname = self._make_next_filename()
-        return self._path + self.outname
+            outname = self._make_next_filename()
+        self.outname = outname
+        return self._path + outname
     
-    def done_writing_file(self):
+    def done_writing_file(self, filename: str =''):
+        if filename.find(self._path) == 0:
+            filename = filename[len(self._path):]
+        else:
+            # TODO more robust checking that we are managing that file.
+            raise ValueError('Invalid filename')
         for l in self.pserver.listeners:
             address = "/__DiskBuffer/" + self.name
             
 #             print('sending ' + address)
 #             print(l.__dict__)
-            l.send_message(address, self.outname)
+            # TODO check that we are actually managing this file, as it is a vector for attack in unsecure networks.
+            l.send_message(address, filename)
         if self._file_lock:
             self._lock.release()
             
