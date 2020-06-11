@@ -172,7 +172,7 @@ class VASPRender {
 
   void drawVASP(Graphics &g, float scale, std::vector<AtomData> &mAtomData,
                 std::vector<float> &mAligned4fData) {
-    gl::polygonFill();
+    g.polygonFill();
     int cumulativeCount = 0;
     // now draw data with custom shaderg.shader(instancing_mesh0.shader);
     g.shader(instancing_mesh0.shader);
@@ -210,7 +210,7 @@ class VASPRender {
           mAligned4fData.data() + (cumulativeCount * 4), count);
       cumulativeCount += count;
 
-      gl::polygonFill();
+      g.polygonFill();
       g.shader().uniform("is_line", 0.0f);
       instancing_mesh0.draw();
 
