@@ -205,19 +205,17 @@ bool OpenVRWrapper::update() {
 
         // save hmd pos data
         if (nDevice == 0) {
-          HMDPos = v;
+          HMDPos = v + viewOffset.pos();
         }
         // region mengyu-> save v3 pos data into controller pos variable
         if (nDevice == LeftController.deviceID) {
-          LeftController.vel =
-              LeftController.pose().pos() - v - viewOffset.pos();
-          LeftController.pose().pos() = v - viewOffset.pos();
+          LeftController.vel = v + viewOffset.pos() - LeftController.pose().pos();
+          LeftController.pose().pos() = v + viewOffset.pos();
         }
 
         if (nDevice == RightController.deviceID) {
-          RightController.vel =
-              RightController.pose().pos() - v - viewOffset.pos();
-          RightController.pose().pos() = v - viewOffset.pos();
+          RightController.vel = v + viewOffset.pos() - RightController.pose().pos();
+          RightController.pose().pos() = v + viewOffset.pos();
         }
       }
       // Check whether the tracked device is a controller
@@ -411,7 +409,7 @@ void OpenVRWrapper::drawVREye(std::function<void(Graphics &)> drawingFunction,
   g.pushProjMatrix(proj);
   g.pushViewMatrix(view);
   g.pushMatrix();
-  g.translate(viewOffset.pos());
+  g.translate(-viewOffset.pos());
 
   // Put draw code here ----------------------------------------------
 
