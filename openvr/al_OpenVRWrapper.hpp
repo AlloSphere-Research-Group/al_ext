@@ -135,6 +135,8 @@ protected:
   al::Vec3f HMDPos;
   al::Quatf HMDQuat;
 
+  al::Vec3f offsetPos;
+
   std::map<int, Controller *> controllers;
 
   // optional:

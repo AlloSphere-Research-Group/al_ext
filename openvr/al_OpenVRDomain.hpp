@@ -15,7 +15,7 @@ class OpenVRDomain : public SynchronousDomain {
   virtual ~OpenVRDomain() {}
 
   // Domain management functions
-  bool initialize(ComputationDomain *parent = nullptr) override;
+  bool initialize(ComputationDomain *parent = nullptr);
   bool tick() override;
   bool cleanup(ComputationDomain *parent = nullptr) override;
 
