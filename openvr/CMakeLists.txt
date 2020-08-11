@@ -7,11 +7,16 @@ include("../BuildExamples.cmake")
 
 
 find_library(OPENVR_LIB openvr_api
+  "${CMAKE_CURRENT_LIST_DIR}/../../../openvr-1.12.5/lib/win64"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../../openvr-1.12.5/lib/win64"
   "${CMAKE_CURRENT_LIST_DIR}/../../../openvr-1.6.10b/lib/win64"
   "${CMAKE_CURRENT_LIST_DIR}/../../../../openvr-1.6.10b/lib/win64"
   "${CMAKE_CURRENT_LIST_DIR}/../../../openvr/lib/win64"
   "${CMAKE_CURRENT_LIST_DIR}/../../../../openvr/lib/win64"
   )
+
+
+message("OpenVR root: ${OPENVR_ROOT_DIR}")
 
 set(THIS_EXTENSION_SRC
   "${CMAKE_CURRENT_LIST_DIR}/src/al_OpenVRWrapper.cpp"
@@ -38,6 +43,8 @@ else()
   get_filename_component(OPENVR_ROOT ${OPENVR_LIB} DIRECTORY)
   set(OPENVR_ROOT "${OPENVR_ROOT}/../../")
   get_filename_component(OPENVR_ROOT ${OPENVR_ROOT} REALPATH)
+
+  set_target_properties(${THIS_EXTENSION_LIBRARY_NAME} PROPERTIES OPENVR_ROOT ${OPENVR_ROOT})
 
   message("Using OpenVR at: ${OPENVR_ROOT}")
   message("Using OpenVR lib: ${OPENVR_LIB}")
