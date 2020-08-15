@@ -346,8 +346,8 @@ bool OpenVRWrapper::update() {
 
   if (m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid) {
     HMDPose = m_rmat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd];
-    al::invert(HMDPose);
     HMDQuat = al::Quatf().fromMatrix(HMDPose);
+    al::invert(HMDPose);
   }
 
   return true;
@@ -410,6 +410,7 @@ void OpenVRWrapper::drawVREye(std::function<void(Graphics &)> drawingFunction,
   g.pushViewMatrix(view);
   g.pushMatrix();
   g.translate(-viewOffset.pos());
+  // g.rotate(viewOffset.quat());
 
   // Put draw code here ----------------------------------------------
 

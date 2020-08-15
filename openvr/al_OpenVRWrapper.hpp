@@ -75,6 +75,9 @@ struct Controller {
   bool gripDown() { return buttonDown(2); }
   bool gripPress() { return buttonPress(2); }
   bool gripRelease() { return buttonRelease(2); }
+  bool menuDown() { return buttonDown(1); }
+  bool menuPress() {return buttonPress(1); }
+  bool menuRelease() { return buttonRelease(1); }
 
   bool Triggered(float threshold = 0.9f) {
     triggerThreshold = threshold;
