@@ -7,13 +7,8 @@ using namespace al;
 
 SoundFileBuffered::SoundFileBuffered(std::string fullPath, bool loop,
                                      int bufferFrames)
-    : mRunning(true),
-      mLoop(loop),
-      mRepeats(0),
-      mSeek(-1),
-      mCurPos(0),
-      mBufferFrames(bufferFrames),
-      mReadCallback(nullptr) {
+    : mRunning(true), mLoop(loop), mRepeats(0), mSeek(-1), mCurPos(0),
+      mBufferFrames(bufferFrames), mReadCallback(nullptr) {
   open(fullPath);
 }
 
@@ -70,7 +65,7 @@ void SoundFileBuffered::readFunction(SoundFileBuffered *obj) {
     std::unique_lock<std::mutex> lk(obj->mLock);
     obj->mCondVar.wait(lk);
     int seek = obj->mSeek.load();
-    if (seek >= 0) {  // Process seek request
+    if (seek >= 0) { // Process seek request
       obj->mSf.seek(seek, SEEK_SET);
       obj->mSeek.store(-1);
     }
@@ -81,14 +76,15 @@ void SoundFileBuffered::readFunction(SoundFileBuffered *obj) {
       // The ring buffer is 1 sample smaller than allocated, so this check
       // is fudged to compensate for that.
       // TODO handle overrun
-      std::cerr << "Warning: overrun available " << framesToRead << " needed "
-                << obj->mBufferFrames << std::endl;
-      continue;
+      //      std::cerr << "Warning: overrun available " << framesToRead << "
+      //      needed "
+      //                << obj->mBufferFrames << std::endl;
+      //      continue;
     }
     int framesRead = obj->mSf.read<float>(obj->mFileBuffer, framesToRead);
     std::atomic_fetch_add(&(obj->mCurPos), framesRead);
     if ((size_t)framesRead !=
-        framesToRead) {  // Final incomplete buffer in the file
+        framesToRead) { // Final incomplete buffer in the file
       if (obj->mLoop) {
         obj->mSf.seek(0, SEEK_SET);
         std::atomic_fetch_add(&(obj->mRepeats), 1);
