@@ -209,12 +209,14 @@ bool OpenVRWrapper::update() {
         }
         // region mengyu-> save v3 pos data into controller pos variable
         if (nDevice == LeftController.deviceID) {
-          LeftController.vel = v + viewOffset.pos() - LeftController.pose().pos();
+          LeftController.vel =
+              v + viewOffset.pos() - LeftController.pose().pos();
           LeftController.pose().pos() = v + viewOffset.pos();
         }
 
         if (nDevice == RightController.deviceID) {
-          RightController.vel = v + viewOffset.pos() - RightController.pose().pos();
+          RightController.vel =
+              v + viewOffset.pos() - RightController.pose().pos();
           RightController.pose().pos() = v + viewOffset.pos();
         }
       }
@@ -410,7 +412,7 @@ void OpenVRWrapper::drawVREye(std::function<void(Graphics &)> drawingFunction,
   g.pushViewMatrix(view);
   g.pushMatrix();
   g.translate(-viewOffset.pos());
-  // g.rotate(viewOffset.quat());
+  g.rotate(viewOffset.quat());
 
   // Put draw code here ----------------------------------------------
 
