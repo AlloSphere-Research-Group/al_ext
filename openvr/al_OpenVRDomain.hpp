@@ -11,7 +11,7 @@
 namespace al {
 
 class OpenVRDomain : public SynchronousDomain {
- public:
+public:
   virtual ~OpenVRDomain() {}
 
   // Domain management functions
@@ -22,8 +22,6 @@ class OpenVRDomain : public SynchronousDomain {
   void setDrawFunction(std::function<void(Graphics &)> func) {
     drawSceneFunc = func;
   }
-
-  void setViewOffset(Vec3d offset) { mOpenVR.viewOffset.pos(offset); }
 
   static std::shared_ptr<OpenVRDomain> enableVR(App *app) {
 #ifdef AL_EXT_OPENVR
@@ -55,12 +53,12 @@ class OpenVRDomain : public SynchronousDomain {
   al::OpenVRWrapper mOpenVR;
   std::unique_ptr<Graphics> mGraphics;
 
- private:
+private:
   std::function<void(Graphics &)> drawSceneFunc = [](Graphics &g) {
     g.clear(1.0, 0, 0.0);
   };
 };
 
-}  // namespace al
+} // namespace al
 
-#endif  // OPENVRDOMAIN_H
+#endif // OPENVRDOMAIN_H

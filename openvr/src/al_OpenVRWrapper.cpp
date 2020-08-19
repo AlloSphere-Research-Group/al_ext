@@ -205,19 +205,17 @@ bool OpenVRWrapper::update() {
 
         // save hmd pos data
         if (nDevice == 0) {
-          HMDPos = v + viewOffset.pos();
+          HMDPos = v;
         }
         // region mengyu-> save v3 pos data into controller pos variable
         if (nDevice == LeftController.deviceID) {
-          LeftController.vel =
-              v + viewOffset.pos() - LeftController.pose().pos();
-          LeftController.pose().pos() = v + viewOffset.pos();
+          LeftController.vel = v - LeftController.pose().pos();
+          LeftController.pose().pos() = v;
         }
 
         if (nDevice == RightController.deviceID) {
-          RightController.vel =
-              v + viewOffset.pos() - RightController.pose().pos();
-          RightController.pose().pos() = v + viewOffset.pos();
+          RightController.vel = v - RightController.pose().pos();
+          RightController.pose().pos() = v;
         }
       }
       // Check whether the tracked device is a controller
@@ -266,10 +264,12 @@ bool OpenVRWrapper::update() {
             // std::cout << nDevice << " ndevice " <<
             // controllers[nDevice]->triggerPressure << std::endl;
           }
-          controllers[nDevice]->buttonsLE = controller_state.ulButtonPressed &
-                                            ~controllers[nDevice]->buttonsDown;
-          controllers[nDevice]->buttonsTE = ~controller_state.ulButtonPressed &
-                                            controllers[nDevice]->buttonsDown;
+          controllers[nDevice]->buttonsPress =
+              controller_state.ulButtonPressed &
+              ~controllers[nDevice]->buttonsDown;
+          controllers[nDevice]->buttonsRelease =
+              ~controller_state.ulButtonPressed &
+              controllers[nDevice]->buttonsDown;
           controllers[nDevice]->buttonsDown = controller_state.ulButtonPressed;
           // ((vr::ButtonMaskFromId(vr::EVRButtonId::k_EButton_Axis1) &
           // controller_state.ulButtonPressed) == 0) ? color = green : color =
@@ -297,24 +297,24 @@ bool OpenVRWrapper::update() {
           m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking);
       if (m_rDevClassChar[nDevice] == 0) {
         switch (vr_context->GetTrackedDeviceClass(nDevice)) {
-          case vr::TrackedDeviceClass_Controller:
-            m_rDevClassChar[nDevice] = 'C';
-            break;
-          case vr::TrackedDeviceClass_HMD:
-            m_rDevClassChar[nDevice] = 'H';
-            break;
-          case vr::TrackedDeviceClass_Invalid:
-            m_rDevClassChar[nDevice] = 'I';
-            break;
-          case vr::TrackedDeviceClass_GenericTracker:
-            m_rDevClassChar[nDevice] = 'G';
-            break;
-          case vr::TrackedDeviceClass_TrackingReference:
-            m_rDevClassChar[nDevice] = 'T';
-            break;
-          default:
-            m_rDevClassChar[nDevice] = '?';
-            break;
+        case vr::TrackedDeviceClass_Controller:
+          m_rDevClassChar[nDevice] = 'C';
+          break;
+        case vr::TrackedDeviceClass_HMD:
+          m_rDevClassChar[nDevice] = 'H';
+          break;
+        case vr::TrackedDeviceClass_Invalid:
+          m_rDevClassChar[nDevice] = 'I';
+          break;
+        case vr::TrackedDeviceClass_GenericTracker:
+          m_rDevClassChar[nDevice] = 'G';
+          break;
+        case vr::TrackedDeviceClass_TrackingReference:
+          m_rDevClassChar[nDevice] = 'T';
+          break;
+        default:
+          m_rDevClassChar[nDevice] = '?';
+          break;
         }
       }
       m_strPoseClasses += m_rDevClassChar[nDevice];
@@ -347,9 +347,9 @@ bool OpenVRWrapper::update() {
   }
 
   if (m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid) {
-    HMDPose = m_rmat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd];
-    HMDQuat = al::Quatf().fromMatrix(HMDPose);
-    al::invert(HMDPose);
+    HMDMat = m_rmat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd];
+    al::invert(HMDMat);
+    HMDQuat = al::Quatf().fromMatrix(HMDMat);
   }
 
   return true;
@@ -364,31 +364,15 @@ void OpenVRWrapper::draw(std::function<void(Graphics &)> drawingFunction,
   if (!vr_context) {
     return;
   }
-  // std::cout << openVR->RightController.triggerPressure << std::endl;
-  // TO DO : translate matrix to move camera
-  // HMDPose times translate Matrix will make it translate to somewhere else
-  // while HMDPose still in the range near 0,0,0 we need to structure the
-  // HMDpose struct / object into a multiplication of raw tracking data times
-  // translate offset so that when you grab HMDpose it reflects its worldpos
-  // correctly
-  //  al::Mat4f translateMat4f;
-  //  translateMat4f.set(1, 0, 0, 1.0f * RightController.triggerPressure, 0, 1,
-  //  0,
-  //                     0, 0, 0, 1, 0, 0, 0, 0, 1);
-  //  translateMat4f.translate(viewOffset.pos());
-
-  auto viewLeft = eyePosLeft * HMDPose;
-  // auto viewLeft = openVR->eyePosLeft * openVR->HMDPose * translateMat4f;
+  auto viewLeft = eyePosLeft * HMDMat;
   auto projLeft = projectionLeft;
 
-  auto viewRight = eyePosRight * HMDPose;
-
-  //  auto viewRight = openVR->eyePosRight *  openVR->HMDPose * translateMat4f;
+  auto viewRight = eyePosRight * HMDMat;
   auto projRight = projectionRight;
-  // auto projRight = openVR->projectionLeft.translate(0.01f *
-  // openVR->RightController.triggerPressure,0.0f,0.0f);
+
   drawVREye(drawingFunction, g, fboLeft, viewLeft, projLeft);
   drawVREye(drawingFunction, g, fboRight, viewRight, projRight);
+
   finishDraw(g);
 #endif
 }
@@ -411,8 +395,6 @@ void OpenVRWrapper::drawVREye(std::function<void(Graphics &)> drawingFunction,
   g.pushProjMatrix(proj);
   g.pushViewMatrix(view);
   g.pushMatrix();
-  g.translate(-viewOffset.pos());
-  g.rotate(viewOffset.quat());
 
   // Put draw code here ----------------------------------------------
 
@@ -479,14 +461,16 @@ Mat4f al::OpenVRWrapper::ConvertSteamVRMatrixToAlMat4f(
 Mat4f OpenVRWrapper::GetHMDMatrixProjectionEye(vr::IVRSystem *vrsys,
                                                vr::Hmd_Eye nEye, float nearClip,
                                                float farClip) {
-  if (!vrsys) return al::Mat4f();
+  if (!vrsys)
+    return al::Mat4f();
   vr::HmdMatrix44_t mat = vrsys->GetProjectionMatrix(nEye, nearClip, farClip);
   return ConvertSteamVRMatrixToAlMat4f(mat);
 }
 
 Mat4f OpenVRWrapper::GetHMDMatrixPoseEye(vr::IVRSystem *vrsys,
                                          vr::Hmd_Eye nEye) {
-  if (!vrsys) return al::Mat4f();
+  if (!vrsys)
+    return al::Mat4f();
   vr::HmdMatrix34_t mat = vrsys->GetEyeToHeadTransform(nEye);
   auto matrixObj = ConvertSteamVRMatrixToAlMat4f(mat);
   al::invert(matrixObj);
@@ -498,7 +482,8 @@ std::string OpenVRWrapper::GetTrackedDeviceString(
     vr::TrackedDeviceProperty prop, vr::TrackedPropertyError *peError) {
   uint32_t requiredBufferLen =
       pHmd->GetStringTrackedDeviceProperty(unDevice, prop, nullptr, 0, peError);
-  if (requiredBufferLen == 0) return "";
+  if (requiredBufferLen == 0)
+    return "";
   char *pchBuffer = new char[requiredBufferLen];
   requiredBufferLen = pHmd->GetStringTrackedDeviceProperty(
       unDevice, prop, pchBuffer, requiredBufferLen, peError);
@@ -507,35 +492,35 @@ std::string OpenVRWrapper::GetTrackedDeviceString(
   return sResult;
 }
 
-std::string OpenVRWrapper::GetTrackedDeviceClassString(
-    vr::ETrackedDeviceClass td_class) {
+std::string
+OpenVRWrapper::GetTrackedDeviceClassString(vr::ETrackedDeviceClass td_class) {
   std::string str_td_class = "Unknown class";
   switch (td_class) {
-    case vr::TrackedDeviceClass_Invalid:  // = 0, the ID was not valid.
-      str_td_class = "invalid";
-      break;
-    case vr::TrackedDeviceClass_HMD:  // = 1, Head-Mounted Displays
-      str_td_class = "hmd";
-      break;
-    case vr::TrackedDeviceClass_Controller:  // = 2, Tracked controllers
-      str_td_class = "controller";
-      break;
-    case vr::TrackedDeviceClass_GenericTracker:  // = 3, Generic trackers,
-                                                 // similar to controllers
-      str_td_class = "generic tracker";
-      break;
-    case vr::TrackedDeviceClass_TrackingReference:  // = 4, Camera and base
-                                                    // stations that serve as
-                                                    // tracking reference points
-      str_td_class = "base station";
-      break;
-    case vr::TrackedDeviceClass_DisplayRedirect:  // = 5, Accessories that
-                                                  // aren't necessarily tracked
-                                                  // themselves, but may
-                                                  // redirect video output from
-                                                  // other tracked devices
-      str_td_class = "display redirect";
-      break;
+  case vr::TrackedDeviceClass_Invalid: // = 0, the ID was not valid.
+    str_td_class = "invalid";
+    break;
+  case vr::TrackedDeviceClass_HMD: // = 1, Head-Mounted Displays
+    str_td_class = "hmd";
+    break;
+  case vr::TrackedDeviceClass_Controller: // = 2, Tracked controllers
+    str_td_class = "controller";
+    break;
+  case vr::TrackedDeviceClass_GenericTracker: // = 3, Generic trackers,
+                                              // similar to controllers
+    str_td_class = "generic tracker";
+    break;
+  case vr::TrackedDeviceClass_TrackingReference: // = 4, Camera and base
+                                                 // stations that serve as
+                                                 // tracking reference points
+    str_td_class = "base station";
+    break;
+  case vr::TrackedDeviceClass_DisplayRedirect: // = 5, Accessories that
+                                               // aren't necessarily tracked
+                                               // themselves, but may
+                                               // redirect video output from
+                                               // other tracked devices
+    str_td_class = "display redirect";
+    break;
   }
   return str_td_class;
 }
@@ -544,121 +529,121 @@ void OpenVRWrapper::process_vr_event(const vr::VREvent_t &event) {
   std::string str_td_class = GetTrackedDeviceClassString(
       vr_context->GetTrackedDeviceClass(event.trackedDeviceIndex));
   switch (event.eventType) {
-    case vr::VREvent_TrackedDeviceActivated: {
-      std::cout << "Device " << event.trackedDeviceIndex << " attached ("
-                << str_td_class << ")" << std::endl;
-      tracked_device_type[event.trackedDeviceIndex] = str_td_class;
+  case vr::VREvent_TrackedDeviceActivated: {
+    std::cout << "Device " << event.trackedDeviceIndex << " attached ("
+              << str_td_class << ")" << std::endl;
+    tracked_device_type[event.trackedDeviceIndex] = str_td_class;
 
-    } break;
-    case vr::VREvent_TrackedDeviceDeactivated: {
-      std::cout << "Device " << event.trackedDeviceIndex << " detached ("
-                << str_td_class << ")" << std::endl;
-      tracked_device_type[event.trackedDeviceIndex] = "";
+  } break;
+  case vr::VREvent_TrackedDeviceDeactivated: {
+    std::cout << "Device " << event.trackedDeviceIndex << " detached ("
+              << str_td_class << ")" << std::endl;
+    tracked_device_type[event.trackedDeviceIndex] = "";
 
-    } break;
-    case vr::VREvent_TrackedDeviceUpdated: {
-      std::cout << "Device " << event.trackedDeviceIndex << " updated ("
-                << str_td_class << ")" << std::endl;
-    } break;
-    case vr::VREvent_ButtonPress: {
-      vr::VREvent_Controller_t controller_data = event.data.controller;
-      // controllers[event.trackedDeviceIndex]->buttonsPressed = true;
-      switch (controller_data.button) {
-        case 2:
-          controllers[event.trackedDeviceIndex]->gripped = true;
-          // std::cout << " gripped" << std::endl;
-          break;
-        case 33:
-          controllers[event.trackedDeviceIndex]->triggerPressed = true;
-          // std::cout << " triggerPressed" << std::endl;
-          break;
-        case 32:
-          controllers[event.trackedDeviceIndex]->touchpadPressed = true;
-          // std::cout << " padPressed" << std::endl;
-          break;
-        case 0:
-          controllers[event.trackedDeviceIndex]->systemPressed = true;
-          // std::cout << "systemPressed" << std::endl;
-          break;
-      }
+  } break;
+  case vr::VREvent_TrackedDeviceUpdated: {
+    std::cout << "Device " << event.trackedDeviceIndex << " updated ("
+              << str_td_class << ")" << std::endl;
+  } break;
+  case vr::VREvent_ButtonPress: {
+    vr::VREvent_Controller_t controller_data = event.data.controller;
+    // controllers[event.trackedDeviceIndex]->buttonsPressed = true;
+    switch (controller_data.button) {
+    case 2:
+      controllers[event.trackedDeviceIndex]->gripped = true;
+      // std::cout << " gripped" << std::endl;
+      break;
+    case 33:
+      controllers[event.trackedDeviceIndex]->triggerPressed = true;
+      // std::cout << " triggerPressed" << std::endl;
+      break;
+    case 32:
+      controllers[event.trackedDeviceIndex]->touchpadPressed = true;
+      // std::cout << " padPressed" << std::endl;
+      break;
+    case 0:
+      controllers[event.trackedDeviceIndex]->systemPressed = true;
+      // std::cout << "systemPressed" << std::endl;
+      break;
+    }
 
-      // std::cout << "this is controller " <<
-      // controllers[event.trackedDeviceIndex]->>deviceID << std::endl;
-      // std::cout
-      // << "Pressed button " <<
-      // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
-      // controller_data.button) << " of device " << event.trackedDeviceIndex <<
-      // "
-      // (" << str_td_class << ")" << std::endl;
-    } break;
-    case vr::VREvent_ButtonUnpress: {
-      vr::VREvent_Controller_t controller_data = event.data.controller;
-      // controllers[event.trackedDeviceIndex]->buttonsPressed = false;
-      // std::cout << " device " << event.trackedDeviceIndex << std::endl;
-      switch (controller_data.button) {
-        case 2:
-          controllers[event.trackedDeviceIndex]->gripped = false;
-          // std::cout << " gripp release" << std::endl;
-          break;
-        case 33:
-          controllers[event.trackedDeviceIndex]->triggerPressed = false;
-          // std::cout << " trigger press release" << std::endl;
-          break;
-        case 32:
-          controllers[event.trackedDeviceIndex]->touchpadPressed = false;
-          // std::cout << " padPress release" << std::endl;
-          break;
-        case 0:
-          controllers[event.trackedDeviceIndex]->systemPressed = false;
-          // std::cout << "systemPressed" << std::endl;
-          break;
-      }
-      // std::cout << "Unpressed button " <<
-      // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
-      // controller_data.button) << " of device " << event.trackedDeviceIndex <<
-      // "
-      // (" << str_td_class << ")" << std::endl;
-    } break;
-    case vr::VREvent_ButtonTouch: {
-      vr::VREvent_Controller_t controller_data = event.data.controller;
-      // controllers[event.trackedDeviceIndex]->buttonsTouched = true;
-      // std::cout << controller_data.button <<  " button touched " <<
-      // std::endl;
-      switch (controller_data.button) {
-        case 32:
-          controllers[event.trackedDeviceIndex]->touchpadTouched = true;
-          // std::cout << " touchpad touched " << std::endl;
-          break;
-        case 33:
-          controllers[event.trackedDeviceIndex]->triggerTouched = true;
-          // std::cout << " trigger touched" << std::endl;
-          break;
-      }
-      // std::cout << "Touched button " <<
-      // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
-      // controller_data.button) << " of device " << event.trackedDeviceIndex <<
-      // "
-      // (" << str_td_class << ")" << std::endl;
-    } break;
-    case vr::VREvent_ButtonUntouch: {
-      vr::VREvent_Controller_t controller_data = event.data.controller;
-      // controllers[event.trackedDeviceIndex]->buttonsTouched = false;
-      switch (controller_data.button) {
-        case 32:
-          controllers[event.trackedDeviceIndex]->touchpadTouched = false;
-          // std::cout << " touchpad released " << std::endl;
-          break;
-        case 33:
-          controllers[event.trackedDeviceIndex]->triggerTouched = false;
-          // std::cout << " trigger touch release" << std::endl;
-          break;
-      }
-      // std::cout << "Untouched button " <<
-      // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
-      // controller_data.button) << " of device " << event.trackedDeviceIndex <<
-      // "
-      // (" << str_td_class << ")" << std::endl;
-    } break;
+    // std::cout << "this is controller " <<
+    // controllers[event.trackedDeviceIndex]->>deviceID << std::endl;
+    // std::cout
+    // << "Pressed button " <<
+    // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
+    // controller_data.button) << " of device " << event.trackedDeviceIndex <<
+    // "
+    // (" << str_td_class << ")" << std::endl;
+  } break;
+  case vr::VREvent_ButtonUnpress: {
+    vr::VREvent_Controller_t controller_data = event.data.controller;
+    // controllers[event.trackedDeviceIndex]->buttonsPressed = false;
+    // std::cout << " device " << event.trackedDeviceIndex << std::endl;
+    switch (controller_data.button) {
+    case 2:
+      controllers[event.trackedDeviceIndex]->gripped = false;
+      // std::cout << " gripp release" << std::endl;
+      break;
+    case 33:
+      controllers[event.trackedDeviceIndex]->triggerPressed = false;
+      // std::cout << " trigger press release" << std::endl;
+      break;
+    case 32:
+      controllers[event.trackedDeviceIndex]->touchpadPressed = false;
+      // std::cout << " padPress release" << std::endl;
+      break;
+    case 0:
+      controllers[event.trackedDeviceIndex]->systemPressed = false;
+      // std::cout << "systemPressed" << std::endl;
+      break;
+    }
+    // std::cout << "Unpressed button " <<
+    // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
+    // controller_data.button) << " of device " << event.trackedDeviceIndex <<
+    // "
+    // (" << str_td_class << ")" << std::endl;
+  } break;
+  case vr::VREvent_ButtonTouch: {
+    vr::VREvent_Controller_t controller_data = event.data.controller;
+    // controllers[event.trackedDeviceIndex]->buttonsTouched = true;
+    // std::cout << controller_data.button <<  " button touched " <<
+    // std::endl;
+    switch (controller_data.button) {
+    case 32:
+      controllers[event.trackedDeviceIndex]->touchpadTouched = true;
+      // std::cout << " touchpad touched " << std::endl;
+      break;
+    case 33:
+      controllers[event.trackedDeviceIndex]->triggerTouched = true;
+      // std::cout << " trigger touched" << std::endl;
+      break;
+    }
+    // std::cout << "Touched button " <<
+    // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
+    // controller_data.button) << " of device " << event.trackedDeviceIndex <<
+    // "
+    // (" << str_td_class << ")" << std::endl;
+  } break;
+  case vr::VREvent_ButtonUntouch: {
+    vr::VREvent_Controller_t controller_data = event.data.controller;
+    // controllers[event.trackedDeviceIndex]->buttonsTouched = false;
+    switch (controller_data.button) {
+    case 32:
+      controllers[event.trackedDeviceIndex]->touchpadTouched = false;
+      // std::cout << " touchpad released " << std::endl;
+      break;
+    case 33:
+      controllers[event.trackedDeviceIndex]->triggerTouched = false;
+      // std::cout << " trigger touch release" << std::endl;
+      break;
+    }
+    // std::cout << "Untouched button " <<
+    // vr_context->GetButtonIdNameFromEnum((vr::EVRButtonId)
+    // controller_data.button) << " of device " << event.trackedDeviceIndex <<
+    // "
+    // (" << str_td_class << ")" << std::endl;
+  } break;
   }
 }
 

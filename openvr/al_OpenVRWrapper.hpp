@@ -26,15 +26,15 @@ namespace al {
 // TO DO: buttonPress event may sometimes crash the program for unknown reason.
 
 struct Controller {
- public:
+public:
   int deviceID;
   Mat4f mat;
   Pose mPose;
   Vec3f vel;
 
   uint64_t buttonsDown;
-  uint64_t buttonsLE;
-  uint64_t buttonsTE;
+  uint64_t buttonsPress;
+  uint64_t buttonsRelease;
   // bool buttonsPressed; //buttons mean any button
   // bool buttonsTouched;
   bool touchpadPressed;
@@ -44,7 +44,7 @@ struct Controller {
   bool systemPressed;
   Vec2f touchPos;
   Vec2f touchVel;
-  bool triggered;  // triggered has a customizable threshold
+  bool triggered; // triggered has a customizable threshold
   float triggerThreshold;
   float triggerPressure;
   bool gripped;
@@ -57,15 +57,17 @@ struct Controller {
     touchpadPressed = false;
     triggerPressed = false;
     triggerTouched = false;
-    triggerThreshold = 0.9f;  // 0.0 - 1.0f
+    triggerThreshold = 0.9f; // 0.0 - 1.0f
     systemPressed = false;
     triggered = false;
     gripped = false;
   }
 
   bool buttonDown(int b) { return (buttonsDown & (uint64_t(1) << b)) != 0; }
-  bool buttonPress(int b) { return (buttonsLE & (uint64_t(1) << b)) != 0; }
-  bool buttonRelease(int b) { return (buttonsTE & (uint64_t(1) << b)) != 0; }
+  bool buttonPress(int b) { return (buttonsPress & (uint64_t(1) << b)) != 0; }
+  bool buttonRelease(int b) {
+    return (buttonsRelease & (uint64_t(1) << b)) != 0;
+  }
   bool triggerDown() { return buttonDown(33); }
   bool triggerPress() { return buttonPress(33); }
   bool triggerRelease() { return buttonRelease(33); }
@@ -76,7 +78,7 @@ struct Controller {
   bool gripPress() { return buttonPress(2); }
   bool gripRelease() { return buttonRelease(2); }
   bool menuDown() { return buttonDown(1); }
-  bool menuPress() {return buttonPress(1); }
+  bool menuPress() { return buttonPress(1); }
   bool menuRelease() { return buttonRelease(1); }
 
   bool Triggered(float threshold = 0.9f) {
@@ -89,7 +91,7 @@ struct Controller {
 };
 
 class OpenVRWrapper {
- public:
+public:
   bool init();
   bool update();
   void draw(std::function<void(Graphics &)> drawingFunction, Graphics &g);
@@ -98,7 +100,7 @@ class OpenVRWrapper {
   Controller LeftController;
   Controller RightController;
 
-  al::Mat4f HMDPose;
+  al::Mat4f HMDMat;
   al::Vec3f HMDPos;
   al::Quatf HMDQuat;
   al::Mat4f projectionLeft;
@@ -106,9 +108,7 @@ class OpenVRWrapper {
   al::Mat4f eyePosLeft;
   al::Mat4f eyePosRight;
 
-  Pose viewOffset;
-
- protected:
+protected:
 #ifdef AL_EXT_OPENVR
   vr::IVRSystem *vr_context = nullptr;
   vr::TrackedDevicePose_t tracked_device_pose[vr::k_unMaxTrackedDeviceCount];
@@ -117,8 +117,7 @@ class OpenVRWrapper {
   int m_iValidPoseCount = 0;
   std::string m_strPoseClasses;
   al::Mat4f m_rmat4DevicePose[vr::k_unMaxTrackedDeviceCount];
-  char
-      m_rDevClassChar[vr::k_unMaxTrackedDeviceCount];  // for each device, a
+  char m_rDevClassChar[vr::k_unMaxTrackedDeviceCount]; // for each device, a
                                                        // character representing
                                                        // its class
   float m_fNearClip = 0.01, m_fFarClip = 100;
@@ -153,10 +152,10 @@ class OpenVRWrapper {
   void finishDraw(al::Graphics &g);
 
 #ifdef AL_EXT_OPENVR
-  static al::Mat4f ConvertSteamVRMatrixToAlMat4f(
-      const vr::HmdMatrix44_t &matPose);
-  static al::Mat4f ConvertSteamVRMatrixToAlMat4f(
-      const vr::HmdMatrix34_t &matPose);
+  static al::Mat4f
+  ConvertSteamVRMatrixToAlMat4f(const vr::HmdMatrix44_t &matPose);
+  static al::Mat4f
+  ConvertSteamVRMatrixToAlMat4f(const vr::HmdMatrix34_t &matPose);
   static al::Mat4f GetHMDMatrixProjectionEye(vr::IVRSystem *vrsys,
                                              vr::Hmd_Eye nEye, float nearClip,
                                              float farClip);
@@ -168,8 +167,8 @@ class OpenVRWrapper {
                                             vr::TrackedDeviceProperty prop,
                                             vr::TrackedPropertyError *peError);
 
-  static std::string GetTrackedDeviceClassString(
-      vr::ETrackedDeviceClass td_class);
+  static std::string
+  GetTrackedDeviceClassString(vr::ETrackedDeviceClass td_class);
 
   // void process_overlay_event(const vr::VREvent_t & event){
   //     switch( event.eventType ){
@@ -182,6 +181,6 @@ class OpenVRWrapper {
 
   bool mInitialized = false;
 };
-}  // namespace al
+} // namespace al
 
 #endif
