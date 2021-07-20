@@ -42,7 +42,7 @@ struct MyApp : public App {
     g.rotate(openVRDomain->mOpenVR.LeftController.pose().quat());
     g.scale(0.1);
     g.color(0, 1, 0);
-    gl::polygonLine();
+    g.polygonLine();
     g.draw(mCube);
     g.popMatrix();
 
@@ -55,7 +55,7 @@ struct MyApp : public App {
     g.rotate(openVRDomain->mOpenVR.RightController.pose().quat());
     g.scale(0.1);
     g.color(0, 0, 1);
-    gl::polygonLine();
+    g.polygonLine();
     g.draw(mCube);
     g.popMatrix();
 
@@ -63,7 +63,7 @@ struct MyApp : public App {
     g.translate(openVRDomain->mOpenVR.HMDPos);
     g.rotate(openVRDomain->mOpenVR.HMDQuat);
     g.color(1, 0, 0);
-    gl::polygonLine();
+    g.polygonLine();
     g.draw(mCube);
     g.popMatrix();
 
@@ -71,7 +71,7 @@ struct MyApp : public App {
   }
 };
 
-int main(int argc, char *argv[]) {
+int main() {
   MyApp app;
 
   app.start();

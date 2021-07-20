@@ -49,6 +49,6 @@ if(BUILD_EXAMPLES)
 BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_assets3d)
 endif(BUILD_EXAMPLES)
 
-#  message("libs: ${CURRENT_EXTENSION_LIBRARIES}")
+  message("Building ASSIMP support: ${CURRENT_EXTENSION_LIBRARIES}")
 
 endif()

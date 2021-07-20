@@ -39,24 +39,24 @@ public:
     // The openVR object is available in the VRRenderer class to query the
     // controllers
     g.pushMatrix();
-    g.translate(mOpenVR.LeftController.pos);
-    g.rotate(mOpenVR.LeftController.quat);
+    g.translate(mOpenVR.LeftController.pose().pos());
+    g.rotate(mOpenVR.LeftController.pose().quat());
     g.scale(0.1);
     g.color(1);
-    g.polygonMode(Graphics::LINE);
+    g.polygonLine();
     g.draw(mCube);
     g.popMatrix();
 
     // right hand
     g.pushMatrix();
-    g.translate(mOpenVR.RightController.pos);
+    g.translate(mOpenVR.RightController.pose().pos());
     // std::cout << openVR->RightController.pos.x <<
     // openVR->RightController.pos.y << openVR->RightController.pos.z <<
     // std::endl;
-    g.rotate(mOpenVR.RightController.quat);
+    g.rotate(mOpenVR.RightController.pose().quat());
     g.scale(0.1);
     g.color(1);
-    g.polygonMode(Graphics::LINE);
+    g.polygonLine();
     g.draw(mCube);
     g.popMatrix();
 #else
@@ -78,7 +78,7 @@ private:
   OpenVRWrapper mOpenVR;
 };
 
-int main(int argc, char *argv[]) {
+int main() {
   MyApp app;
 
   app.start();

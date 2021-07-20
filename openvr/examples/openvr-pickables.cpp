@@ -138,8 +138,8 @@ struct MyApp : public App {
     // The openVR object is available in the VRRenderer class to query the
     // controllers
     g.pushMatrix();
-    g.translate(openVRDomain->mOpenVR.LeftController.pos);
-    g.rotate(openVRDomain->mOpenVR.LeftController.quat);
+    g.translate(openVRDomain->mOpenVR.LeftController.pose().pos());
+    g.rotate(openVRDomain->mOpenVR.LeftController.pose().quat());
 
     g.color(0, 1, 1);
     g.draw(mController);
@@ -147,8 +147,8 @@ struct MyApp : public App {
 
     // right hand
     g.pushMatrix();
-    g.translate(openVRDomain->mOpenVR.RightController.pos);
-    g.rotate(openVRDomain->mOpenVR.RightController.quat);
+    g.translate(openVRDomain->mOpenVR.RightController.pose().pos());
+    g.rotate(openVRDomain->mOpenVR.RightController.pose().quat());
     g.color(1, 0, 1);
     g.draw(mController);
     g.popMatrix();

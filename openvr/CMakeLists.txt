@@ -57,7 +57,10 @@ else()
 
 
   if(BUILD_EXAMPLES)
-    BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_assets3d)
+      if (TARGET al_assets3d)
+          BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_assets3d)
+      endif (TARGET al_assets3d)
+
   endif(BUILD_EXAMPLES)
 
 #  # unit tests
