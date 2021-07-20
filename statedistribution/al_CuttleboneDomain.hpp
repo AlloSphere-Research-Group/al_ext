@@ -32,7 +32,7 @@ class CuttleboneSendDomain;
 template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
           unsigned PORT = 63059>
 class CuttleboneDomain : public StateDistributionDomain<TSharedState> {
- public:
+public:
   std::shared_ptr<CuttleboneSendDomain<TSharedState, PACKET_SIZE, PORT>>
   addStateSender(std::string id = "",
                  std::shared_ptr<TSharedState> statePtr = nullptr);
@@ -57,19 +57,19 @@ class CuttleboneDomain : public StateDistributionDomain<TSharedState> {
 #endif
   }
 
- private:
+private:
 };
 
 template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
           unsigned PORT = 63059>
 class CuttleboneReceiveDomain : public StateReceiveDomain<TSharedState> {
- public:
+public:
   bool init(ComputationDomain *parent = nullptr) override;
 
   bool tick() override {
     this->tickSubdomains(true);
 
-    assert(this->mState);  // State must have been set at this point
+    assert(this->mState); // State must have been set at this point
 #ifdef AL_USE_CUTTLEBONE
     assert(mTaker);
     this->mQueuedStates = mTaker->get(*(this->mState.get()));
@@ -92,7 +92,7 @@ class CuttleboneReceiveDomain : public StateReceiveDomain<TSharedState> {
 #endif
   }
 
- private:
+private:
 #ifdef AL_USE_CUTTLEBONE
   std::unique_ptr<cuttlebone::Taker<TSharedState, PACKET_SIZE, PORT>> mTaker;
 #endif
@@ -110,6 +110,9 @@ bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
         std::make_unique<cuttlebone::Taker<TSharedState, PACKET_SIZE, PORT>>();
     mTaker->start();
     bool ret = this->initializeSubdomains(false);
+
+    std::cout << "CuttleboneReceiveDomain: " << this->mAddress << ":" << PORT
+              << std::endl;
     return ret;
   } else {
     std::cout << "CuttleboneSendDomain - already initialized" << std::endl;
@@ -124,7 +127,7 @@ bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
 template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
           unsigned PORT = 63059>
 class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
- public:
+public:
   bool init(ComputationDomain * /*parent*/ = nullptr) override {
     this->initializeSubdomains(true);
 
@@ -135,6 +138,9 @@ class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
               this->mAddress.c_str());
       mMaker->start();
       bool ret = this->initializeSubdomains(false);
+      std::cout << "CuttleboneSendDomain: " << this->mAddress << ":" << PORT
+                << std::endl;
+
       return ret;
     } else {
       std::cout << "CuttleboneSendDomain - already initialized" << std::endl;
@@ -149,7 +155,7 @@ class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
   bool tick() override {
     this->tickSubdomains(true);
 
-    assert(this->mState);  // State must have been set at this point
+    assert(this->mState); // State must have been set at this point
 #ifdef AL_USE_CUTTLEBONE
     assert(mMaker);
     mMaker->set(*(this->mState.get()));
@@ -175,7 +181,7 @@ class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
 #endif
   }
 
- private:
+private:
 #ifdef AL_USE_CUTTLEBONE
   std::unique_ptr<cuttlebone::Maker<TSharedState, PACKET_SIZE, PORT>> mMaker;
 #endif
@@ -204,6 +210,6 @@ CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>::addStateReceiver(
   return newDomain;
 }
 
-}  // namespace al
+} // namespace al
 
-#endif  // CUTTLEBONEDOMAIN_H
+#endif // CUTTLEBONEDOMAIN_H

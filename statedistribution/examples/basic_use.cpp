@@ -8,6 +8,7 @@ using namespace al;
 struct State {
   al::Color backgroundColor{1.0f, 1.0f, 1.0f, 1.0f};
   al::Pose pose;
+  uint64_t counter{0};
 };
 
 struct MyDistributedApp : public DistributedAppWithState<State> {
@@ -35,12 +36,14 @@ struct MyDistributedApp : public DistributedAppWithState<State> {
       state().backgroundColor.r = float(mouse().x()) / width();
       state().backgroundColor.g = float(mouse().y()) / height();
       state().pose = pose();
+      state().counter++;
     } else {
       pose() = state().pose;
+      std::cout << state().counter << std::endl;
     }
   }
 
-  void onDraw(Graphics& g) override {
+  void onDraw(Graphics &g) override {
     // We use the state background color
     // This will work no matter if we are readers or writers of state.
     g.clear(state().backgroundColor);
