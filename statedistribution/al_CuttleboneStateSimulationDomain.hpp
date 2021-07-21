@@ -68,7 +68,7 @@ public:
 
       cbDomain->simulationFunction =
           std::bind(&App::onAnimate, app, std::placeholders::_1);
-      if (app->isPrimary()) {
+      if (app->hasCapability(CAP_STATE_SEND)) {
         auto sender = cbDomain->addStateSender();
         if (app->additionalConfig.find("broadcastAddress") !=
             app->additionalConfig.end()) {
@@ -77,9 +77,13 @@ public:
           sender->setAddress("127.0.0.1");
         }
         assert(sender);
-      } else {
+      } else if (app->hasCapability(CAP_STATE_RECEIVE)) {
         auto receiver = cbDomain->addStateReceiver();
         assert(receiver);
+      } else {
+        std::cerr << "Cuttlebone domain enabled, but application has no state "
+                     "distribution capabilties enabled"
+                  << std::endl;
       }
       if (!cbDomain->init(nullptr)) {
         cbDomain = nullptr;
