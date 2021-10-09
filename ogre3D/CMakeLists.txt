@@ -1,5 +1,6 @@
 
-set(OGRE_SDK "C:\\Users\\Andres\\source\\repos\\ogre-sdk-v2.2.5-vc19-x64\\sdk")
+set(OGRE_SDK "C:\\Users\\Andres\\source\\repos\\ogre-sdk-v2.2.5-vc19-x64\\sdk"
+    CACHE STRING "Path to the OGRE SDK for Windows")
 
 list(APPEND CMAKE_MODULE_PATH
 ${OGRE_SDK}/cmake
@@ -68,6 +69,11 @@ if(OGRE_FOUND)
           set( CMAKE_EXE_LINKER_FLAGS "-framework Foundation -framework CoreGraphics -framework QuartzCore -framework UIKit -framework Metal -framework MetalKit -framework ModelIO" )
   endif()
 
+
+
+  if(BUILD_EXAMPLES)
+    BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} "")
+  endif(BUILD_EXAMPLES)
 endif(OGRE_FOUND)
 #  # unit tests
 
@@ -97,7 +103,4 @@ endif(OGRE_FOUND)
 
 ##  endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/catch")
 
-if(BUILD_EXAMPLES)
-  BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} "")
-endif(BUILD_EXAMPLES)
 
