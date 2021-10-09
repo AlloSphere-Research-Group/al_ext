@@ -1,6 +1,8 @@
 
 #include "al/app/al_DistributedApp.hpp"
+#include "al/graphics/al_Font.hpp"
 #include "al/graphics/al_Shapes.hpp"
+
 #include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
 
 using namespace al;
@@ -49,6 +51,8 @@ struct MyDistributedApp : public DistributedAppWithState<State> {
     g.clear(state().backgroundColor);
     g.color(0.5);
     g.draw(mesh);
+    FontRenderer::render(g, std::to_string(state().counter).c_str(),
+                         Vec3f{1, 1, -3});
   }
 };
 

@@ -44,7 +44,7 @@ public:
 
   void onDraw(Graphics &g) override {
     g.clear(0);
-    gl::polygonFill();
+    g.polygonFill();
     g.meshColor();
     g.draw(mesh); // Draw the mesh
   }

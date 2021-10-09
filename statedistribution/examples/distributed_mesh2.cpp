@@ -44,7 +44,7 @@ struct MeshVoice : public PositionedVoice {
   }
 
   void onProcess(Graphics &g) override {
-    gl::polygonFill();
+    g.polygonFill();
     g.meshColor();
     g.draw(mesh); // Draw the mesh
   }

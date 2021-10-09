@@ -71,7 +71,7 @@ include("../BuildExamples.cmake")
 
 ##  endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/catch")
 
-#  if(BUILD_EXAMPLES)
-#      BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} "")
-#  endif(BUILD_EXAMPLES)
+if(BUILD_EXAMPLES)
+  BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} "")
+endif(BUILD_EXAMPLES)
 
