@@ -15,12 +15,14 @@
 #include "Compositor/OgreCompositorManager2.h"
 
 #include "OgreEntity.h"
+#include "OgreMaterialManager.h"
 #include "OgreMesh2.h"
 #include "OgreMesh2Serializer.h"
 #include "OgreMeshManager.h"
 #include "OgreMeshManager2.h"
 #include "OgreMeshSerializer.h"
 #include "OgreWindowEventUtilities.h"
+//#include "OgreResourceManager.h"
 
 #include "GLFW/glfw3.h"
 #define GLFW_EXPOSE_NATIVE_WGL
@@ -138,6 +140,9 @@ static void registerHlms(void) {
 
 bool al::Ogre3DDomain::init(ComputationDomain *parent) {
 
+  if (mInitialized) {
+    return true;
+  }
   using namespace Ogre;
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
@@ -156,18 +161,27 @@ bool al::Ogre3DDomain::init(ComputationDomain *parent) {
   const char *pluginsFile = "plugins.cfg";
 #endif
 #endif
-  root = OGRE_NEW Root(pluginsFolder + pluginsFile,    //
-                       writeAccessFolder + "ogre.cfg", //
-                       writeAccessFolder + "Ogre.log");
-
-  if (!root->restoreConfig()) {
-    if (!root->showConfigDialog())
-      return -1;
+  mOgreRoot = OGRE_NEW Root(pluginsFolder + pluginsFile,    //
+                            writeAccessFolder + "ogre.cfg", //
+                            writeAccessFolder + "Ogre.log");
+  Ogre::RenderSystem *renderSystem =
+      mOgreRoot->getRenderSystemByName("OpenGL 3+ Rendering Subsystem");
+  if (!(renderSystem)) {
+    printf("Render system not found!\n");
+    return false;
   }
+  renderSystem->setConfigOption("sRGB Gamma Conversion", "Yes");
+
+  mOgreRoot->setRenderSystem(renderSystem);
+
+  // This can be used to display the OGRE configuration panel.
+  //  if (!root->restoreConfig()) {
+  //    if (!root->showConfigDialog())
+  //      return -1;
+  //  }
 
   // Initialize Root
-  root->getRenderSystem()->setConfigOption("sRGB Gamma Conversion", "Yes");
-  root->initialise(false);
+  mOgreRoot->initialise(false);
 
   //  ogreWindow->setVisible(true);
 
@@ -177,6 +191,8 @@ bool al::Ogre3DDomain::init(ComputationDomain *parent) {
   mOpenGLWindowParent = dynamic_cast<GLFWOpenGLWindowDomain *>(parent);
   misc["externalGLControl"] = Ogre::StringConverter::toString((true));
 // expose NSGL stuff for ogre
+// See for details:
+// https://www.ogre3d.org/docs/api/1.9/class_ogre_1_1_render_system.html#aaf156b9f935396e6c17f532f6e6c847e
 #ifdef AL_MAC_OS
   misc["macAPI"] = Ogre::String("cocoa");
   NSWindow *nsWindow = glfwGetCocoaWindow(window);
@@ -204,14 +220,14 @@ bool al::Ogre3DDomain::init(ComputationDomain *parent) {
 
 #endif
 
-  Ogre::Window *ogreWindow =
-      root->createRenderWindow("AlloOgre", 800, 600, false, &misc);
+  ogreWindow =
+      mOgreRoot->createRenderWindow("AlloOgre", 800, 600, false, &misc);
 
   registerHlms();
 
   const size_t numThreads = 1u;
-  mSceneManager =
-      root->createSceneManager(ST_GENERIC, numThreads, "AlloOgreSceneManager");
+  mSceneManager = mOgreRoot->createSceneManager(ST_GENERIC, numThreads,
+                                                "AlloOgreSceneManager");
 
   // Create & setup camera
   camera = mSceneManager->createCamera("Main Camera");
@@ -225,7 +241,7 @@ bool al::Ogre3DDomain::init(ComputationDomain *parent) {
   camera->setAutoAspectRatio(true);
 
   // Setup a basic compositor with a blue clear colour
-  mCompositorManager = root->getCompositorManager2();
+  mCompositorManager = mOgreRoot->getCompositorManager2();
   const ColourValue backgroundColour(0.2f, 0.4f, 0.6f);
   mCompositorManager->createBasicWorkspaceDef(workspaceName, backgroundColour,
                                               IdString());
@@ -234,19 +250,57 @@ bool al::Ogre3DDomain::init(ComputationDomain *parent) {
 
   //  WindowEventUtilities::addWindowEventListener(ogreWindow,
   //  &myWindowEventListener); root->addFrameListener(this);
+
+  //  Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
+  //      "Media/2.0/scripts/materials/PbsMaterials", "Filesystem");
+
+  //  { // Materials and HLMS
+
+  //    Ogre::ResourceGroupManager &resourceGroupManager =
+  //        Ogre::ResourceGroupManager::getSingleton();
+  //    resourceGroupManager.addResourceLocation("data/Models", "FileSystem",
+  //                                             "Models");
+  //    resourceGroupManager.addResourceLocation("data/Materials/Textures",
+  //                                             "FileSystem", "Textures");
+
+  //    {
+  //      resourceGroupManager.createResourceGroup("Materials");
+  //      resourceGroupManager.addResourceLocation("data/Materials",
+  //      "FileSystem",
+  //                                               "Materials");
+  //      resourceGroupManager.initialiseResourceGroup("Materials", true);
+  //      resourceGroupManager.loadResourceGroup("Materials");
+  //    }
+  //  }
   Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups(true);
 
+  { // List materials
+    int i = 0;
+    auto materialIterator =
+        Ogre::MaterialManager::getSingleton().getResourceIterator();
+    while (materialIterator.hasMoreElements()) {
+      std::cout << materialIterator.peekNextValue()->getName() << std::endl;
+      materialIterator.moveNext();
+      i++;
+    }
+  }
+  mInitialized = true;
   return true;
 }
 
 bool al::Ogre3DDomain::tick() {
-  auto pos = mOpenGLWindowParent->nav().pos() * 100;
+  auto pos = mOpenGLWindowParent->nav().pos();
   camera->setPosition(Ogre::Vector3(pos.x, pos.y, pos.z));
-  // TODO set camera orientation
+  // Should we find a reactive way to set resolution?
+  ogreWindow->requestResolution(mOpenGLWindowParent->window().width(),
+                                mOpenGLWindowParent->window().height());
+  // FIXME set camera orientation, this is not quite right
   // Look back along -Z
-  //  camera->lookAt(Ogre::Vector3(0, 0, 0));
+  auto lookAtVector = mOpenGLWindowParent->nav().quat().normalize().rotate(
+      Vec3d(pos.x, pos.y, pos.z - 1));
+  camera->lookAt(Ogre::Vector3(lookAtVector.x, lookAtVector.y, lookAtVector.z));
   Ogre::WindowEventUtilities::messagePump();
-  bool ret = root->renderOneFrame();
+  bool ret = mOgreRoot->renderOneFrame();
   return ret;
 }
 
@@ -254,4 +308,11 @@ Ogre::SceneManager *al::Ogre3DDomain::getSceneManager() {
   return mSceneManager;
 }
 
-bool al::Ogre3DDomain::cleanup(ComputationDomain *parent) { return true; }
+Ogre::Root *al::Ogre3DDomain::getOgreRoot() { return mOgreRoot; }
+
+bool al::Ogre3DDomain::cleanup(ComputationDomain *parent) {
+  // FIXME what is needed here? How do we cleanup Ogre?
+
+  mInitialized = false;
+  return true;
+}

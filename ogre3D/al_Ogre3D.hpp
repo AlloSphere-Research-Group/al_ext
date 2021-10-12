@@ -37,17 +37,19 @@ public:
   bool tick() override;
 
   Ogre::SceneManager *getSceneManager();
+  Ogre::Root *getOgreRoot();
 
 private:
   bool bQuit{false};
-  Ogre::Root *root;
 
   const Ogre::String workspaceName{"AlloOgre Workspace"};
-  Ogre::SceneManager *mSceneManager;
-  Ogre::CompositorManager2 *mCompositorManager;
-  Ogre::Camera *camera;
+  Ogre::Root *mOgreRoot{nullptr};
+  Ogre::SceneManager *mSceneManager{nullptr};
+  Ogre::CompositorManager2 *mCompositorManager{nullptr};
+  Ogre::Camera *camera{nullptr};
+  Ogre::Window *ogreWindow{nullptr};
 
-  GLFWOpenGLWindowDomain *mOpenGLWindowParent;
+  GLFWOpenGLWindowDomain *mOpenGLWindowParent{nullptr};
 };
 } // namespace al
 
