@@ -82,8 +82,10 @@ public:
   bool cleanup(ComputationDomain * /*parent*/ = nullptr) override {
     this->cleanupSubdomains(true);
 #ifdef AL_USE_CUTTLEBONE
-    mTaker->stop();
-    mTaker = nullptr;
+    if (mTaker) {
+      mTaker->stop();
+      mTaker = nullptr;
+    }
     this->cleanupSubdomains(false);
     return true;
 #else

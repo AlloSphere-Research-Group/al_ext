@@ -4,6 +4,7 @@
 #include "al/graphics/al_Shapes.hpp"
 #include "al/math/al_Random.hpp"
 
+#include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
 #include "al_ext/statedistribution/al_Serialize.hpp"
 
 using namespace al;
@@ -28,6 +29,13 @@ public:
     addCone(mesh);
     mesh.primitive(Mesh::TRIANGLE_STRIP);
     navControl().active(false);
+
+    auto cuttleboneDomain =
+        CuttleboneStateSimulationDomain<SharedState>::enableCuttlebone(this);
+    if (!cuttleboneDomain) {
+      std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
+      quit();
+    }
   }
 
   void onAnimate(double /*dt*/) override {

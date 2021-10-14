@@ -20,7 +20,6 @@ struct MyDistributedApp : public DistributedAppWithState<State> {
   std::shared_ptr<CuttleboneStateSimulationDomain<State>> cuttleboneDomain;
 
   void onInit() override {
-    // Add cuttlebone support to this app
     cuttleboneDomain =
         CuttleboneStateSimulationDomain<State>::enableCuttlebone(this);
     if (!cuttleboneDomain) {
@@ -52,7 +51,7 @@ struct MyDistributedApp : public DistributedAppWithState<State> {
     g.color(0.5);
     g.draw(mesh);
     FontRenderer::render(g, std::to_string(state().counter).c_str(),
-                         Vec3f{1, 1, -3});
+                         Vec3f{0.25, 0.25, -2}, 0.25);
   }
 };
 

@@ -5,6 +5,7 @@
 #include "al/math/al_Random.hpp"
 #include "al/scene/al_DistributedScene.hpp"
 
+#include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
 #include "al_ext/statedistribution/al_Serialize.hpp"
 
 // This example shows using shared distributed state to control voices from
@@ -62,6 +63,13 @@ public:
 
     scene.registerSynthClass<MeshVoice>();
     registerDynamicScene(scene);
+
+    auto cuttleboneDomain =
+        CuttleboneStateSimulationDomain<SharedState>::enableCuttlebone(this);
+    if (!cuttleboneDomain) {
+      std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
+      quit();
+    }
   }
 
   void onAnimate(double dt) override {
