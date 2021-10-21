@@ -26,6 +26,7 @@ bool SoundFileBuffered::open(std::string fullPath) {
     mFileBuffer = new float[mBufferFrames * channels()];
     mReaderThread = new std::thread(readFunction, this);
     mRunning = true;
+    mCurPos.store(0);
 
     // We need to make sure that the condition variable is already waiting when
     // waking up to pre-fill buffer.
