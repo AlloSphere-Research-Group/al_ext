@@ -25,6 +25,7 @@ add_library(${THIS_EXTENSION_LIBRARY_NAME} ${THIS_EXTENSION_SRC} ${THIS_EXTENSIO
 if(USE_CUTTLEBONE)
   target_compile_definitions(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC AL_USE_CUTTLEBONE)
   target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC cuttlebone/)
+#  target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC libnop/include)
 endif(USE_CUTTLEBONE)
 # c++14 It's very important to set this for the extension as not
 # setting it will cause targets upstream to not use c++14

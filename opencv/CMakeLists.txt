@@ -12,15 +12,15 @@ if (EXISTS "${OPENCV_SDK}")
 else()
 endif()
 
-find_package (OpenCV REQUIRED)
+find_package (OpenCV)
 
-message("Using OpenCV ${OpenCV_LIBS} SDK from: ${OPENCV_SDK}")
-message("${OPENCV_INCLUDE_DIRS}")
 
 if (NOT OPENCV_CORE_FOUND)
     message("OpenCV not found. Not building al_opencv extension.")
 else()
 
+    message("Using OpenCV ${OpenCV_LIBS} SDK from: ${OPENCV_SDK}")
+    message("${OPENCV_INCLUDE_DIRS}")
     set(THIS_EXTENSION_SRC
       "${CMAKE_CURRENT_LIST_DIR}/src/al_OpenCV.cpp"
     )
