@@ -1,6 +1,8 @@
-set(USE_CUTTLEBONE 1)
-set(CB_BUILD_EXAMPLES OFF)
-add_subdirectory(cuttlebone)
+set(USE_CUTTLEBONE ON CACHE BOOL "")
+if (USE_CUTTLEBONE)
+    set(CB_BUILD_EXAMPLES OFF)
+    add_subdirectory(cuttlebone)
+endif()
 
 include("../BuildExamples.cmake")
 
