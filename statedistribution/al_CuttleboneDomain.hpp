@@ -111,6 +111,7 @@ bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
     mTaker =
         std::make_unique<cuttlebone::Taker<TSharedState, PACKET_SIZE, PORT>>();
     mTaker->start();
+    //    mTaker->shouldLog = true;
     bool ret = this->initializeSubdomains(false);
 
     std::cout << "CuttleboneReceiveDomain: " << this->mAddress << ":" << PORT
@@ -134,21 +135,29 @@ public:
     this->initializeSubdomains(true);
 
 #ifdef AL_USE_CUTTLEBONE
-    if (!mMaker) {
-      mMaker =
-          std::make_unique<cuttlebone::Maker<TSharedState, PACKET_SIZE, PORT>>(
-              this->mAddress.c_str());
-      mMaker->start();
-      bool ret = this->initializeSubdomains(false);
-      std::cout << "CuttleboneSendDomain: " << this->mAddress << ":" << PORT
-                << std::endl;
+    mBroadcaster.init(PACKET_SIZE, this->mAddress.c_str(), PORT, false);
+    mFrame = 0;
 
-      return ret;
-    } else {
-      std::cout << "CuttleboneSendDomain - already initialized" << std::endl;
-      this->initializeSubdomains(false);
-      return true;
+    std::cout << "CuttleboneSendDomain: " << this->mAddress << ":" << PORT
+              << std::endl;
+    mRunThread = true;
+    if (!mSendThread) {
+      mSendThread = std::make_unique<std::thread>([&]() {
+        while (mRunThread) {
+          std::unique_lock<std::mutex> lk(mSendLock);
+          mSendCondition.wait(lk);
+          cuttlebone::PacketMaker<TSharedState, cuttlebone::Packet<PACKET_SIZE>>
+              packetMaker(*this->mState, mFrame);
+          // XXX consider making this multithreaded. the timing should be
+          // measured, at least.
+          while (packetMaker.fill(p))
+            mBroadcaster.send((unsigned char *)&p);
+          mFrame++;
+        }
+      });
     }
+    bool ret = this->initializeSubdomains(false);
+    return ret;
 #else
     return false;
 #endif
@@ -159,8 +168,7 @@ public:
 
     assert(this->mState); // State must have been set at this point
 #ifdef AL_USE_CUTTLEBONE
-    assert(mMaker);
-    mMaker->set(*(this->mState.get()));
+    mSendCondition.notify_one();
     this->tickSubdomains(false);
     return true;
 #else
@@ -171,9 +179,15 @@ public:
   bool cleanup(ComputationDomain * /*parent*/ = nullptr) override {
     this->cleanupSubdomains(true);
 #ifdef AL_USE_CUTTLEBONE
-    if (mMaker) {
-      mMaker->stop();
-      mMaker = nullptr;
+    //    if (mMaker) {
+    //      mMaker->stop();
+    //      mMaker = nullptr;
+    //    }
+    if (mSendThread) {
+      mRunThread = false;
+      mSendCondition.notify_one();
+      mSendThread->join();
+      mSendThread = nullptr;
     }
     this->cleanupSubdomains(false);
     return true;
@@ -185,7 +199,16 @@ public:
 
 private:
 #ifdef AL_USE_CUTTLEBONE
-  std::unique_ptr<cuttlebone::Maker<TSharedState, PACKET_SIZE, PORT>> mMaker;
+
+  cuttlebone::Broadcaster mBroadcaster;
+  cuttlebone::Packet<PACKET_SIZE> p;
+  int mFrame = 0;
+
+  std::mutex mSendLock;
+  std::condition_variable mSendCondition;
+  bool mRunThread;
+  std::unique_ptr<std::thread> mSendThread;
+//  std::unique_ptr<cuttlebone::Maker<TSharedState, PACKET_SIZE, PORT>> mMaker;
 #endif
 };
 

@@ -9,7 +9,7 @@
 
 using namespace al;
 
-const size_t maxMeshDataSize = 128;
+const size_t maxMeshDataSize = 4 * 1024 * 64;
 
 struct SharedState {
   char meshData[maxMeshDataSize];
@@ -36,6 +36,10 @@ public:
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
     }
+    std::cout << "Size of state: " << sizeof(SharedState) << std::endl;
+    std::cout << "Bandwidth: "
+              << graphicsDomain()->fps() * sizeof(SharedState) * 8 / 10e6
+              << " Gb/s" << std::endl;
   }
 
   void onAnimate(double /*dt*/) override {
@@ -68,7 +72,7 @@ public:
     } else {
       mesh.reset();
 
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < maxMeshDataSize / (4 * 3 * 4); i++) {
         mesh.vertex(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
         mesh.color(rnd::uniform(), rnd::uniform(), rnd::uniform());
       }
