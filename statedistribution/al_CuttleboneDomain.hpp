@@ -2,10 +2,12 @@
 #define CUTTLEBONEDOMAIN_H
 
 #include <cassert>
+#include <condition_variable>
 #include <cstring>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <thread>
 #include <vector>
 
 #include "al/app/al_App.hpp"
