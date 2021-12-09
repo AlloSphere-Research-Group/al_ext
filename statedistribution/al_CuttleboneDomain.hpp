@@ -120,7 +120,7 @@ bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
               << std::endl;
     return ret;
   } else {
-    std::cout << "CuttleboneSendDomain - already initialized" << std::endl;
+    std::cout << "CuttleboneReceiveDomain - already initialized" << std::endl;
     bool ret = this->initializeSubdomains(false);
     return ret;
   }
