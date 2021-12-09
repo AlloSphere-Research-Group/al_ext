@@ -23,21 +23,23 @@ struct SerializedMesh {
   size_t meshColors = 0;
 };
 
+// Shared state sent to renderer application
 struct SharedState {
   SerializedMesh meshes[maxVoices];
 };
 
+//
 struct MeshVoice : public PositionedVoice {
 
   Mesh mesh;
 
   void init() override { mesh.primitive(Mesh::TRIANGLE_STRIP); }
 
-  void onTriggerOn() override { setPose(Vec3d(0, 0, 0)); }
+  void onTriggerOn() override { setPose(Vec3d(-2, 0, 0)); }
 
   void update(double dt) override {
     auto p = pose();
-    p.pos().x = p.pos().x + 0.02;
+    p.pos().x = p.pos().x + 0.01;
     if (p.pos().x >= 2) {
       free();
     }
@@ -66,6 +68,7 @@ public:
 
     auto cuttleboneDomain =
         CuttleboneStateSimulationDomain<SharedState>::enableCuttlebone(this);
+
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
@@ -81,13 +84,19 @@ public:
       auto *voice = scene.getActiveVoices();
       size_t counter = 0;
       while (voice && counter < maxVoices) {
-        ser::serializeMesh(((MeshVoice *)voice)->mesh,
-                           state().meshes[counter].meshData,
-                           state().meshes[counter].meshVertices,
-                           state().meshes[counter].meshIndeces,
-                           state().meshes[counter].meshColors, maxMeshDataSize);
-        state().meshes[counter].id = voice->id();
-        voice = voice->next;
+        if (!ser::serializeMesh(
+                ((MeshVoice *)voice)->mesh, state().meshes[counter].meshData,
+                state().meshes[counter].meshVertices,
+                state().meshes[counter].meshIndeces,
+                state().meshes[counter].meshColors, maxMeshDataSize)) {
+          std::cerr << "ERROR: could not serialize mesh" << std::endl;
+        } else {
+          if (counter < maxVoices) {
+
+            state().meshes[counter].id = voice->id();
+            voice = voice->next;
+          }
+        }
         counter++;
       }
     } else {
@@ -105,9 +114,6 @@ public:
         if (m) {
           ser::deserializeMesh(((MeshVoice *)voice)->mesh, m->meshData,
                                m->meshVertices, m->meshIndeces, m->meshColors);
-
-        } else {
-          std::cerr << "ERROR: unexpeceted voice id" << std::endl;
         }
         voice = voice->next;
       }
@@ -132,16 +138,19 @@ public:
         std::cout << "Not doing omni rendering" << std::endl;
       }
     } else {
+      // If this is primary node, then trigger a new moving mesh
+      if (isPrimary()) {
+        auto *voice = scene.getVoice<MeshVoice>();
+        voice->mesh.reset();
 
-      auto *voice = scene.getVoice<MeshVoice>();
-      voice->mesh.reset();
+        for (int i = 0; i < maxMeshDataSize / (4 * 7); i++) {
+          voice->mesh.vertex(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
+          voice->mesh.color(rnd::uniform(), rnd::uniform(), rnd::uniform(),
+                            1.0f);
+        }
 
-      for (int i = 0; i < 4; i++) {
-        voice->mesh.vertex(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-        voice->mesh.color(rnd::uniform(), rnd::uniform(), rnd::uniform());
+        scene.triggerOn(voice);
       }
-
-      scene.triggerOn(voice);
     }
     return true;
   }

@@ -62,7 +62,7 @@ namespace ser {
  * The binary format for serialization is bound to change, so don't rely on
  * it.
  */
-static void serializeMesh(Mesh &mesh, char *meshData, size_t &numVertices,
+static bool serializeMesh(Mesh &mesh, char *meshData, size_t &numVertices,
                           size_t &numIndices, size_t &numColors,
                           size_t meshDataSize) {
   size_t numBytes = (mesh.vertices().size() * 3 * sizeof(float)) +
@@ -70,7 +70,9 @@ static void serializeMesh(Mesh &mesh, char *meshData, size_t &numVertices,
                     (mesh.colors().size() * 4 * sizeof(float));
   if (numBytes > meshDataSize) {
     numVertices = numIndices = numColors = 0;
-    return;
+    //      std::cerr << __FUNCTION__ << ": ERROR: not enough space to serialize
+    //      mesh" << std::endl;
+    return false;
   }
   numVertices = mesh.vertices().size();
   for (auto vertex : mesh.vertices()) {
@@ -88,6 +90,7 @@ static void serializeMesh(Mesh &mesh, char *meshData, size_t &numVertices,
     memcpy(meshData, color.components, 4 * sizeof(float));
     meshData += 4 * sizeof(float);
   }
+  return true;
 }
 
 static void deserializeMesh(Mesh &mesh, char *meshData, size_t numVertices,

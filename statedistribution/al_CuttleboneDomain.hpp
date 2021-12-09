@@ -150,10 +150,9 @@ public:
           mSendCondition.wait(lk);
           cuttlebone::PacketMaker<TSharedState, cuttlebone::Packet<PACKET_SIZE>>
               packetMaker(*this->mState, mFrame);
-          // XXX consider making this multithreaded. the timing should be
-          // measured, at least.
           while (packetMaker.fill(p))
             mBroadcaster.send((unsigned char *)&p);
+          //          std::cout << "Sent frame " << mFrame << std::endl;
           mFrame++;
         }
       });
