@@ -12,8 +12,8 @@
 // DynamicScene
 using namespace al;
 
-const size_t maxMeshDataSize = 256;
-const size_t maxVoices = 3;
+const size_t maxMeshDataSize = 512;
+const size_t maxVoices = 15;
 
 struct SerializedMesh {
   uint16_t id = 0;
@@ -35,11 +35,15 @@ struct MeshVoice : public PositionedVoice {
 
   void init() override {
     mesh.primitive(Mesh::TRIANGLE_STRIP);
-
     registerParameter(parameterPose()); // Send pose to replica instances
   }
 
-  void onTriggerOn() override { setPose(Vec3d(-2, 0, 0)); }
+  void onTriggerOn() override {
+    if (mIsReplica) {
+      mesh.reset();
+    }
+    setPose(Vec3d(-2, 0, 0));
+  }
 
   void update(double dt) override {
     if (!mIsReplica) {
@@ -49,6 +53,10 @@ struct MeshVoice : public PositionedVoice {
         free();
       }
       setPose(p);
+      // The mesh is changed on the primary node
+      // The other nodes get the changes to the mesh in the shared state
+
+      mesh.scale(0.99, 1.02, 0.95);
     }
   }
 
@@ -110,16 +118,16 @@ public:
       auto *voice = scene.getActiveVoices();
 
       while (voice) {
-        SerializedMesh *m = nullptr;
         for (size_t i = 0; i < maxVoices; i++) {
           if (state().meshes[i].id == voice->id()) {
-            m = &state().meshes[i];
+            SerializedMesh *m = &state().meshes[i];
+            //            std::cout << "setting " << state().meshes[i].id <<
+            //            std::endl;
+            ser::deserializeMesh(((MeshVoice *)voice)->mesh, m->meshData,
+                                 m->meshVertices, m->meshIndeces,
+                                 m->meshColors);
             break;
           }
-        }
-        if (m) {
-          ser::deserializeMesh(((MeshVoice *)voice)->mesh, m->meshData,
-                               m->meshVertices, m->meshIndeces, m->meshColors);
         }
         voice = voice->next;
       }
