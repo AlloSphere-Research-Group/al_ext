@@ -57,6 +57,9 @@ struct MeshVoice : public PositionedVoice {
       // The other nodes get the changes to the mesh in the shared state
 
       mesh.scale(0.99, 1.02, 0.95);
+      for (auto &c : mesh.colors()) {
+        c.a *= 0.99f;
+      }
     }
   }
 
@@ -136,6 +139,8 @@ public:
 
   void onDraw(Graphics &g) override {
     g.clear(0);
+    g.blending(true);
+    g.blendTrans();
     scene.render(g);
   }
 
