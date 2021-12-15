@@ -107,7 +107,7 @@ static void deserializeMesh(Mesh &mesh, char *meshData, size_t numVertices,
   }
   mesh.colors().resize(numColors); // Allocate upfront if needed
   for (auto &color : mesh.colors()) {
-    memcpy(color.components, meshData, 3 * sizeof(float));
+    memcpy(color.components, meshData, 4 * sizeof(float));
     meshData += 4 * sizeof(float);
   }
 }
