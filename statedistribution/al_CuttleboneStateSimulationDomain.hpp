@@ -55,12 +55,13 @@ public:
 
   static std::shared_ptr<
       CuttleboneStateSimulationDomain<TSharedState, PACKET_SIZE, PORT>>
-  enableCuttlebone(DistributedAppWithState<TSharedState> *app) {
+  enableCuttlebone(DistributedAppWithState<TSharedState> *app,
+                   bool prepend = true) {
     std::shared_ptr<
         CuttleboneStateSimulationDomain<TSharedState, PACKET_SIZE, PORT>>
         cbDomain = app->graphicsDomain()
                        ->template newSubDomain<CuttleboneStateSimulationDomain<
-                           TSharedState, PACKET_SIZE, PORT>>(true);
+                           TSharedState, PACKET_SIZE, PORT>>(prepend);
     app->graphicsDomain()->removeSubDomain(app->simulationDomain());
     if (cbDomain) {
       //      cbDomain->A
