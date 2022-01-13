@@ -1,6 +1,7 @@
 #ifndef AL_VIDEODECODER_HPP
 #define AL_VIDEODECODER_HPP
 
+#ifdef AL_EXT_LIBAV
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -150,5 +151,9 @@ private:
   // ** Threads **
   std::thread *decode_thread{nullptr};
 };
+
+#else
+#pragma message("al_ext video extension not built. Do not include this header")
+#endif
 
 #endif // AL_VIDEODECODER_HPP
