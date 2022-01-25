@@ -42,7 +42,7 @@ else()
   )
   set(THIS_EXTENSION_LIBRARY_NAME al_spatialaudio)
 
-  add_library(${THIS_EXTENSION_LIBRARY_NAME} ${THIS_EXTENSION_SRC} ${THIS_EXTENSION_HEADERS})
+  add_library(${THIS_EXTENSION_LIBRARY_NAME} ${AL_LIBRARY_TYPE} ${THIS_EXTENSION_SRC} ${THIS_EXTENSION_HEADERS})
 
   # c++14 It's very important to set this for the extension as not
   # setting it will cause targets upstream to not use c++14
