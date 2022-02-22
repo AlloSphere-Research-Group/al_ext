@@ -20,8 +20,8 @@ extern "C" {
 
 using namespace al;
 
-static const int AUDIO_BUFFER_SIZE = 1;
-static const int VIDEO_BUFFER_SIZE = 1;
+static const int AUDIO_BUFFER_SIZE = 8;
+static const int VIDEO_BUFFER_SIZE = 8;
 static const double AV_SYNC_THRESHOLD = 0.01;
 static const double AV_NOSYNC_THRESHOLD = 1.0;
 
@@ -147,6 +147,8 @@ private:
 
   MediaFrame audio_output;
   MediaBuffer audio_buffer;
+
+  std::atomic<bool> skip{false};
 
   // ** Threads **
   std::thread *decode_thread{nullptr};
