@@ -458,7 +458,7 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
     // sync video if needed
     if (fabs(video_diff) > AV_NOSYNC_THRESHOLD) {
       // TODO: check seek direction
-      stream_seek((int64_t)(external_clock * AV_TIME_BASE), 0);
+      stream_seek((int64_t)(external_clock * AV_TIME_BASE), (int)video_diff);
       return nullptr;
     }
 
@@ -499,8 +499,8 @@ void VideoDecoder::stream_seek(int64_t pos, int rel) {
   if (!video_state.seek_requested) {
     video_state.seek_pos = pos;
     // TODO: check which flag to use
-    // video_state.seek_flags = (rel < 0) ? AVSEEK_FLAG_BACKWARD : 0;
-    video_state.seek_flags = AVSEEK_FLAG_ANY;
+    video_state.seek_flags = (rel < 0) ? AVSEEK_FLAG_BACKWARD : 0;
+    // video_state.seek_flags = AVSEEK_FLAG_ANY;
     video_state.seek_requested = 1;
   }
 }
