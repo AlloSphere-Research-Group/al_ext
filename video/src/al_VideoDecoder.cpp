@@ -419,14 +419,20 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 }
 
 uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
-  if (skip.load()) {
-    skip = false;
+  if (delay_next_frame.load()) {
+    delay_next_frame = false;
     return nullptr;
   }
 
   // get next video frame
   if (!video_buffer.get(video_output) || video_state.seek_requested) {
     return nullptr;
+  }
+
+  if (skip_next_frame.load()) {
+    if (video_buffer.get(video_output)) {
+      skip_next_frame = false;
+    }
   }
 
   // get current/last frame pts and delay
@@ -463,9 +469,9 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
     }
 
     if (video_diff > AV_SYNC_THRESHOLD) {
-      skip = true;
+      delay_next_frame = true;
     } else if (video_diff < -AV_SYNC_THRESHOLD) {
-      return getVideoFrame(external_clock);
+      skip_next_frame = true;
     }
   }
 

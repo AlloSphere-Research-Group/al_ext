@@ -148,7 +148,8 @@ private:
   MediaFrame audio_output;
   MediaBuffer audio_buffer;
 
-  std::atomic<bool> skip{false};
+  std::atomic<bool> delay_next_frame{false};
+  std::atomic<bool> skip_next_frame{false};
 
   // ** Threads **
   std::thread *decode_thread{nullptr};
