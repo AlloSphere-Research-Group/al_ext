@@ -22,8 +22,8 @@ using namespace al;
 
 static const int AUDIO_BUFFER_SIZE = 8;
 static const int VIDEO_BUFFER_SIZE = 8;
-static const double AV_SYNC_THRESHOLD = 0.01;
-static const double AV_NOSYNC_THRESHOLD = 1.0;
+static const double AV_SYNC_THRESHOLD = 1.5 / 30.0;
+static const double AV_NOSYNC_THRESHOLD = 3.0;
 
 enum MasterSync { AV_SYNC_AUDIO = 0, AV_SYNC_VIDEO = 1, AV_SYNC_EXTERNAL = 2 };
 

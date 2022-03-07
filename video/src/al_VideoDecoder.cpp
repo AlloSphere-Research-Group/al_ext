@@ -420,6 +420,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 
 uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
   if (delay_next_frame.load()) {
+    // std::cout << "delaying" << std::endl;
     delay_next_frame = false;
     return nullptr;
   }
@@ -430,6 +431,7 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
   }
 
   if (skip_next_frame.load()) {
+    // std::cout << "skipping" << std::endl;
     if (video_buffer.get(video_output)) {
       skip_next_frame = false;
     }
@@ -460,18 +462,22 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
 
     // difference between target pts and current master clock
     double video_diff = pts - video_state.master_clock;
+    // std::cout << video_diff << std::endl;
 
     // sync video if needed
     if (fabs(video_diff) > AV_NOSYNC_THRESHOLD) {
-      // TODO: check seek direction
-      stream_seek((int64_t)(external_clock * AV_TIME_BASE), (int)video_diff);
+      // std::cout << "seeking" << std::endl;
+      stream_seek((int64_t)(video_state.master_clock * AV_TIME_BASE),
+                  -(int)video_diff);
       return nullptr;
     }
 
     if (video_diff > AV_SYNC_THRESHOLD) {
       delay_next_frame = true;
+      skip_next_frame = false;
     } else if (video_diff < -AV_SYNC_THRESHOLD) {
       skip_next_frame = true;
+      delay_next_frame = false;
     }
   }
 
@@ -508,6 +514,8 @@ void VideoDecoder::stream_seek(int64_t pos, int rel) {
     video_state.seek_flags = (rel < 0) ? AVSEEK_FLAG_BACKWARD : 0;
     // video_state.seek_flags = AVSEEK_FLAG_ANY;
     video_state.seek_requested = 1;
+    delay_next_frame = false;
+    skip_next_frame = false;
   }
 }
 
