@@ -437,14 +437,15 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
   if (skip_next_frame.load()) {
     // std::cout << "skipping" << std::endl;
     skip_next_frame = false;
-    do {
-      video_state.last_frame_pts = video_output->pts;
-      video_buffer.got();
-      video_output = video_buffer.get();
-      if (!video_output) {
-        return nullptr;
-      }
-    } while (external_clock - video_state.last_frame_pts > AV_SYNC_THRESHOLD);
+    // do {
+    video_state.last_frame_pts = video_output->pts;
+    video_buffer.got();
+    video_output = video_buffer.get();
+    if (!video_output) {
+      return nullptr;
+    }
+    // } while (external_clock - video_state.last_frame_pts >
+    // AV_SYNC_THRESHOLD);
   }
 
   // save pts information
