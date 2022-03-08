@@ -220,6 +220,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   while (vs->global_quit == 0) {
     // seeking
     if (vs->seek_requested) {
+      // std::cout << "seek start" << std::endl;
       int video_stream_index = -1;
       int audio_stream_index = -1;
       int64_t video_seek_target = vs->seek_pos;
@@ -259,6 +260,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
       }
 
       vs->seek_requested = 0;
+      // std::cout << "seek end" << std::endl;
     }
 
     // read the next frame
@@ -419,6 +421,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
   // check if currently seeking
   if (video_state.seek_requested) {
+    video_buffer.cond.notify_one();
+    audio_buffer.cond.notify_one();
     return nullptr;
   }
 

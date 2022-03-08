@@ -64,7 +64,7 @@ public:
     // std::cout << "*** flushing : " << frames.size() << std::endl;
     for (int i = 0; i < frames.size(); ++i) {
       valid[i] = false;
-      frames[i].clear();
+      // frames[i].clear();
     }
 
     readPos = 0;
