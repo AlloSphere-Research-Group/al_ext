@@ -328,7 +328,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 
         std::unique_lock<std::mutex> lk(vs->video_frames->mutex);
 
-        while (!vs->video_frames->put(MediaFrame(buffer, numBytes, pts))) {
+        while (!vs->video_frames->put(buffer, numBytes, pts)) {
           vs->video_frames->cond.wait(lk);
 
           if (vs->global_quit != 0 || vs->seek_requested) {
@@ -395,8 +395,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 
         std::unique_lock<std::mutex> lk(vs->audio_frames->mutex);
 
-        while (!vs->audio_frames->put(
-            MediaFrame(audio_out, vs->audio_frame_size, pts))) {
+        while (!vs->audio_frames->put(audio_out, vs->audio_frame_size, pts)) {
           vs->audio_frames->cond.wait(lk);
 
           if (vs->global_quit != 0 || vs->seek_requested) {

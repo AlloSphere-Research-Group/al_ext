@@ -27,7 +27,7 @@ public:
   MediaBuffer(int numElements)
       : frames(numElements), valid(numElements), readPos(0), writePos(0) {}
 
-  bool put(MediaFrame &&mFrame) {
+  bool put(uint8_t *buffer, int &numBytes, double &pts) {
     if (valid[writePos]) {
       // std::cerr << "Buffer pos already occupied: " << writePos << std::endl;
       return false;
@@ -36,7 +36,7 @@ public:
     // std::cout << "Writing at buffer: " << writePos << std::endl;
 
     // TODO: check possible unnecessary memory copy
-    frames[writePos] = std::move(mFrame);
+    frames[writePos] = MediaFrame(buffer, numBytes, pts);
     valid[writePos] = true;
     writePos = ++writePos % frames.size();
 
