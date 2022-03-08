@@ -43,25 +43,21 @@ public:
     return true;
   }
 
-  bool get(MediaFrame &mFrame) {
+  MediaFrame *get() {
     if (!valid[readPos]) {
       // std::cerr << " Buffer pos empty: " << readPos << std::endl;
-
       cond.notify_one();
-
-      return false;
+      return nullptr;
     }
 
     // std::cout << " Reading at buffer: " << readPos << std::endl;
+    return &frames[readPos];
+  }
 
-    // TODO: check possible unnecessary memory copy
-    mFrame = std::move(frames[readPos]);
+  void got() {
     valid[readPos] = false;
     readPos = ++readPos % frames.size();
-
     cond.notify_one();
-
-    return true;
   }
 
   void flush() {
