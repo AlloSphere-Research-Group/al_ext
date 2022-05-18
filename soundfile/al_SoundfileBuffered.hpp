@@ -97,6 +97,7 @@ private:
   std::atomic<int> mRepeats{0};
   std::atomic<int> mSeek;
   std::atomic<int> mCurPos{0}; // Updated once per read buffer
+
   std::mutex mLock;
   std::condition_variable mCondVar;
   std::thread *mReaderThread;

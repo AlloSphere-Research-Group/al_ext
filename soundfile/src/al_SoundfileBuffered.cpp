@@ -24,8 +24,8 @@ bool SoundFileBuffered::open(std::string fullPath) {
     mSf.path(fullPath);
     mSf.openRead();
     if (mSf.opened()) {
-      std::cout << "buffer frames (per channel): " << mBufferFrames
-                << " channels " << channels() << std::endl;
+      //      std::cout << "buffer frames (per channel): " << mBufferFrames
+      //                << " channels " << channels() << std::endl;
       if (previousChannels != mSf.channels()) {
         if (mRingBuffer) {
           delete mRingBuffer;
@@ -40,6 +40,8 @@ bool SoundFileBuffered::open(std::string fullPath) {
       if (!mRingBuffer) {
         mRingBuffer =
             new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
+      } else {
+        mRingBuffer->clear();
       }
       if (!mFileBuffer) {
         mFileBuffer = new float[mBufferFrames * channels()];
@@ -53,7 +55,6 @@ bool SoundFileBuffered::open(std::string fullPath) {
 
       // We need to make sure that the condition variable is already waiting
       // when waking up to pre-fill buffer.
-      mRingBuffer->clear();
       while (mRingBuffer->readSpace() <
              mBufferFrames * channels() * sizeof(float) - 8) {
         mCondVar.notify_one();
