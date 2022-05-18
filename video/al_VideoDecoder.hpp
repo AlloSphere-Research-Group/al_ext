@@ -20,10 +20,10 @@ extern "C" {
 
 using namespace al;
 
-static const int AUDIO_BUFFER_SIZE = 1;
-static const int VIDEO_BUFFER_SIZE = 1;
-static const double AV_SYNC_THRESHOLD = 0.01;
-static const double AV_NOSYNC_THRESHOLD = 1.0;
+static const int AUDIO_BUFFER_SIZE = 8;
+static const int VIDEO_BUFFER_SIZE = 8;
+static const double AV_SYNC_THRESHOLD = 1.5 / 30.0;
+static const double AV_NOSYNC_THRESHOLD = 3.0;
 
 enum MasterSync { AV_SYNC_AUDIO = 0, AV_SYNC_VIDEO = 1, AV_SYNC_EXTERNAL = 2 };
 
@@ -54,7 +54,6 @@ struct VideoState {
   double audio_clock;
   double master_clock;
   double last_frame_pts;
-  double last_frame_delay;
 
   // ** Seek **
   bool seek_requested;
@@ -86,6 +85,9 @@ public:
   // get the next video/audio frame
   uint8_t *getVideoFrame(double external_clock = -1);
   uint8_t *getAudioFrame(double external_clock = -1);
+
+  void gotVideoFrame() { video_buffer.got(); }
+  void gotAudioFrame() { audio_buffer.got(); }
 
   // seek position in video file
   void stream_seek(int64_t pos, int rel);
@@ -142,11 +144,14 @@ private:
 
   VideoState video_state;
 
-  MediaFrame video_output;
+  MediaFrame *video_output;
   MediaBuffer video_buffer;
 
-  MediaFrame audio_output;
+  MediaFrame *audio_output;
   MediaBuffer audio_buffer;
+
+  std::atomic<bool> delay_next_frame{false};
+  std::atomic<bool> skip_next_frame{false};
 
   // ** Threads **
   std::thread *decode_thread{nullptr};

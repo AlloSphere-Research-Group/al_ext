@@ -25,7 +25,6 @@ void VideoDecoder::init() {
   video_state.audio_clock = 0;
   video_state.master_clock = 0;
   video_state.last_frame_pts = 0;
-  video_state.last_frame_delay = 40e-3;
 
   video_state.seek_requested = 0;
   video_state.seek_flags = 0;
@@ -221,6 +220,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   while (vs->global_quit == 0) {
     // seeking
     if (vs->seek_requested) {
+      // std::cout << "seek start" << std::endl;
       int video_stream_index = -1;
       int audio_stream_index = -1;
       int64_t video_seek_target = vs->seek_pos;
@@ -260,6 +260,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
       }
 
       vs->seek_requested = 0;
+      // std::cout << "seek end" << std::endl;
     }
 
     // read the next frame
@@ -329,12 +330,12 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 
         std::unique_lock<std::mutex> lk(vs->video_frames->mutex);
 
-        while (!vs->video_frames->put(MediaFrame(buffer, numBytes, pts))) {
+        while (!vs->video_frames->put(buffer, numBytes, pts)) {
+          vs->video_frames->cond.wait(lk);
+
           if (vs->global_quit != 0 || vs->seek_requested) {
             break;
           }
-
-          vs->video_frames->cond.wait(lk);
         }
       }
     } else if (packet->stream_index == vs->audio_st_idx) {
@@ -396,13 +397,12 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 
         std::unique_lock<std::mutex> lk(vs->audio_frames->mutex);
 
-        while (!vs->audio_frames->put(
-            MediaFrame(audio_out, vs->audio_frame_size, pts))) {
+        while (!vs->audio_frames->put(audio_out, vs->audio_frame_size, pts)) {
+          vs->audio_frames->cond.wait(lk);
+
           if (vs->global_quit != 0 || vs->seek_requested) {
             break;
           }
-
-          vs->audio_frames->cond.wait(lk);
         }
       }
     }
@@ -419,55 +419,90 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 }
 
 uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
-  // get next video frame
-  if (!video_buffer.get(video_output) || video_state.seek_requested) {
+  // check if currently seeking
+  if (video_state.seek_requested) {
+    video_buffer.cond.notify_one();
+    audio_buffer.cond.notify_one();
     return nullptr;
   }
 
-  // get current/last frame pts and delay
-  double &pts = video_output.pts;
-  double pts_delay = pts - video_state.last_frame_pts;
-
-  // check if obtained delay is invalid
-  if (pts_delay <= 0 || pts_delay >= 1.0) {
-    // use previous calculated delay
-    pts_delay = video_state.last_frame_delay;
+  if (delay_next_frame.load()) {
+    // std::cout << "delaying" << std::endl;
+    delay_next_frame = false;
+    return nullptr;
   }
 
-  // save pts/delay information
-  video_state.last_frame_pts = pts;
-  video_state.last_frame_delay = pts_delay;
+  // get next video frame
+  video_output = video_buffer.get();
+  if (!video_output) {
+    return nullptr;
+  }
+
+  if (skip_next_frame.load()) {
+    // std::cout << "skipping" << std::endl;
+    skip_next_frame = false;
+    // do {
+    video_state.last_frame_pts = video_output->pts;
+    video_buffer.got();
+    video_output = video_buffer.get();
+    if (!video_output) {
+      return nullptr;
+    }
+    // } while (external_clock - video_state.last_frame_pts >
+    // AV_SYNC_THRESHOLD);
+  }
+
+  // save pts information
+  video_state.last_frame_pts = video_output->pts;
 
   if (video_state.master_sync == MasterSync::AV_SYNC_VIDEO) {
     // update master clock if video sync
-    video_state.master_clock = pts;
+    video_state.master_clock = video_output->pts;
   } else {
     // update master clock if external sync
     if (video_state.master_sync == MasterSync::AV_SYNC_EXTERNAL) {
       video_state.master_clock = external_clock;
     }
 
-    // // difference between target pts and current master clock
-    // double video_diff = pts - video_state.master_clock;
+    // difference between target pts and current master clock
+    double video_diff = video_output->pts - video_state.master_clock;
+    // std::cout << video_diff << std::endl;
 
     // sync video if needed
-    // if (fabs(video_diff) > AV_SYNC_THRESHOLD) {
-    //   std::cout << "video_diff: " << video_diff << std::endl;
-    // }
+    if (fabs(video_diff) > AV_NOSYNC_THRESHOLD) {
+      // std::cout << "seeking" << std::endl;
+      stream_seek((int64_t)(video_state.master_clock * AV_TIME_BASE),
+                  -(int)video_diff);
+      return nullptr;
+    }
+
+    if (video_diff > AV_SYNC_THRESHOLD) {
+      delay_next_frame = true;
+      skip_next_frame = false;
+    } else if (video_diff < -AV_SYNC_THRESHOLD) {
+      skip_next_frame = true;
+      delay_next_frame = false;
+    }
   }
 
-  return video_output.data.data();
+  return video_output->data.data();
 }
 
 uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
-  // get next audio frame
-  if (!audio_buffer.get(audio_output) || video_state.seek_requested) {
+  if (video_state.seek_requested) {
     return nullptr;
   }
 
+  // get next audio frame
+  audio_output = audio_buffer.get();
+  if (!audio_output) {
+    return nullptr;
+  }
+
+  // TODO: implement audio sync to video/external
   if (video_state.master_sync == MasterSync::AV_SYNC_AUDIO) {
     // update master clock if audio sync
-    video_state.master_clock = audio_output.pts;
+    video_state.master_clock = audio_output->pts;
   }
   // else {
   //   // difference between target pts and current master clock
@@ -479,7 +514,7 @@ uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
   //   }
   // }
 
-  return audio_output.data.data();
+  return audio_output->data.data();
 }
 
 void VideoDecoder::stream_seek(int64_t pos, int rel) {
@@ -487,7 +522,14 @@ void VideoDecoder::stream_seek(int64_t pos, int rel) {
     video_state.seek_pos = pos;
     // TODO: check which flag to use
     video_state.seek_flags = (rel < 0) ? AVSEEK_FLAG_BACKWARD : 0;
+    // video_state.seek_flags = AVSEEK_FLAG_ANY;
     video_state.seek_requested = 1;
+
+    delay_next_frame = false;
+    skip_next_frame = false;
+
+    video_buffer.cond.notify_one();
+    audio_buffer.cond.notify_one();
   }
 }
 

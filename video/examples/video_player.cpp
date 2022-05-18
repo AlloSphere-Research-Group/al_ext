@@ -10,7 +10,7 @@ public:
     videoDecoder.enableAudio(false);
     if (!videoDecoder.load(mVideoFileToLoad.c_str())) {
       std::cerr << "Error loading video file" << std::endl;
-      //            quit();
+      quit();
     }
     // generate texture
     tex.filter(Texture::LINEAR);
@@ -26,31 +26,12 @@ public:
   }
 
   virtual void onAnimate(al_sec dt) override {
-
-    bool timeChanged = false;
     if (mPlaying) {
-      wallTime += dt;
-      timeChanged = true;
-    }
-    if (wallTime < previousTime) {
-      videoDecoder.stream_seek((int64_t)(wallTime * AV_TIME_BASE), -10);
-      timeChanged = true;
-    } else if (wallTime - previousTime > 3.0 / 30.0) {
-
-      videoDecoder.stream_seek((int64_t)(wallTime * AV_TIME_BASE), 10);
-      timeChanged = true;
-    } else if (wallTime != previousTime) {
-      videoDecoder.stream_seek((int64_t)(wallTime * AV_TIME_BASE), 10);
-      timeChanged = true;
-    }
-    if (timeChanged) {
-      uint8_t *frame = videoDecoder.getVideoFrame(wallTime);
-
+      uint8_t *frame = videoDecoder.getVideoFrame();
       if (frame) {
         tex.submit(frame);
       }
     }
-    previousTime = wallTime;
   }
 
   virtual void onDraw(Graphics &g) override {
@@ -66,8 +47,6 @@ public:
     mVideoFileToLoad = videoFileUrl;
   }
 
-  double wallTime{0.0};
-  double previousTime{0.0};
   double aspectRatio{1.0};
 
 private:

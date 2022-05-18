@@ -27,7 +27,7 @@ public:
   MediaBuffer(int numElements)
       : frames(numElements), valid(numElements), readPos(0), writePos(0) {}
 
-  bool put(MediaFrame &&mFrame) {
+  bool put(uint8_t *buffer, int &numBytes, double &pts) {
     if (valid[writePos]) {
       // std::cerr << "Buffer pos already occupied: " << writePos << std::endl;
       return false;
@@ -36,39 +36,35 @@ public:
     // std::cout << "Writing at buffer: " << writePos << std::endl;
 
     // TODO: check possible unnecessary memory copy
-    frames[writePos] = std::move(mFrame);
+    frames[writePos] = MediaFrame(buffer, numBytes, pts);
     valid[writePos] = true;
     writePos = ++writePos % frames.size();
 
     return true;
   }
 
-  bool get(MediaFrame &mFrame) {
+  MediaFrame *get() {
     if (!valid[readPos]) {
       // std::cerr << " Buffer pos empty: " << readPos << std::endl;
-
       cond.notify_one();
-
-      return false;
+      return nullptr;
     }
 
     // std::cout << " Reading at buffer: " << readPos << std::endl;
+    return &frames[readPos];
+  }
 
-    // TODO: check possible unnecessary memory copy
-    mFrame = std::move(frames[readPos]);
+  void got() {
     valid[readPos] = false;
     readPos = ++readPos % frames.size();
-
     cond.notify_one();
-
-    return true;
   }
 
   void flush() {
     // std::cout << "*** flushing : " << frames.size() << std::endl;
     for (int i = 0; i < frames.size(); ++i) {
       valid[i] = false;
-      frames[i].clear();
+      // frames[i].clear();
     }
 
     readPos = 0;
