@@ -24,8 +24,8 @@ bool SoundFileBuffered::open(std::string fullPath) {
     mSf.path(fullPath);
     mSf.openRead();
     if (mSf.opened()) {
-      std::cout << "buffer frames (per channel): " << mBufferFrames
-                << " channels " << channels() << std::endl;
+      //      std::cout << "buffer frames (per channel): " << mBufferFrames
+      //                << " channels " << channels() << std::endl;
       if (previousChannels != mSf.channels()) {
         if (mRingBuffer) {
           delete mRingBuffer;
