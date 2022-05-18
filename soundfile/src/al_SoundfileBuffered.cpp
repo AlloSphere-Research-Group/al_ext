@@ -5,32 +5,82 @@
 
 using namespace al;
 
+SoundFileBuffered::SoundFileBuffered(int bufferFrames)
+    : mSeek(-1), mCurPos(0), mBufferFrames(bufferFrames) {}
+
 SoundFileBuffered::SoundFileBuffered(std::string fullPath, bool loop,
                                      int bufferFrames)
-    : mRunning(true), mLoop(loop), mRepeats(0), mSeek(-1), mCurPos(0),
-      mBufferFrames(bufferFrames), mReadCallback(nullptr) {
+    : SoundFileBuffered(bufferFrames) {
+  mLoop = loop;
   open(fullPath);
 }
 
 SoundFileBuffered::~SoundFileBuffered() { close(); }
 
 bool SoundFileBuffered::open(std::string fullPath) {
-  close();
-  mSf.path(fullPath);
-  mSf.openRead();
-  if (mSf.opened()) {
-    std::cout << "buffer frames (per channel): " << mBufferFrames
-              << " channels " << channels() << std::endl;
-    mRingBuffer =
-        new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
-    mFileBuffer = new float[mBufferFrames * channels()];
+  auto previousChannels = mSf.channels();
+  if (fullPath != mSf.path()) {
+    close();
+    mSf.path(fullPath);
+    mSf.openRead();
+    if (mSf.opened()) {
+      std::cout << "buffer frames (per channel): " << mBufferFrames
+                << " channels " << channels() << std::endl;
+      if (previousChannels != mSf.channels()) {
+        if (mRingBuffer) {
+          delete mRingBuffer;
+        }
+        //        if (mFileBuffer) {
+        //          delete[] mFileBuffer;
+        //        }
+        mRingBuffer =
+            new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
+        mFileBuffer = new float[mBufferFrames * channels()];
+      }
+      if (!mRingBuffer) {
+        mRingBuffer =
+            new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
+      }
+      if (!mFileBuffer) {
+        mFileBuffer = new float[mBufferFrames * channels()];
+      }
+      // TODO don't reallocate thread every time
+      mReaderThread = new std::thread(readFunction, this);
+      mRunning = true;
+      mCurPos.store(0);
+      // FIXME there is a race condition if open is called while read is
+      // processing.
+
+      // We need to make sure that the condition variable is already waiting
+      // when waking up to pre-fill buffer.
+      mRingBuffer->clear();
+      //      while (mRingBuffer->readSpace() <
+      //             mBufferFrames * channels() * sizeof(float) - 8) {
+      //        mCondVar.notify_one();
+      //      }
+
+      return true;
+    }
+  } else {
+    // TODO don't reallocate thread every time
     mReaderThread = new std::thread(readFunction, this);
+    mSeek.store(0);
+    if (mRingBuffer) {
+      mRingBuffer->clear();
+    } else {
+      mRingBuffer =
+          new SingleRWRingBuffer(mBufferFrames * channels() * sizeof(float));
+    }
+
+    if (!mFileBuffer) {
+      mFileBuffer = new float[mBufferFrames * channels()];
+    }
     mRunning = true;
     mCurPos.store(0);
-
-    // We need to make sure that the condition variable is already waiting when
-    // waking up to pre-fill buffer.
-    mCondVar.notify_one();
+    while (mRingBuffer->readSpace() <
+           mBufferFrames * channels() * sizeof(float) - 8) {
+      mCondVar.notify_one();
+    }
     return true;
   }
   return false;
@@ -41,23 +91,30 @@ bool SoundFileBuffered::close() {
     mRunning = false;
     mCondVar.notify_one();
     mReaderThread->join();
-    delete mReaderThread;
-    delete mRingBuffer;
-    delete[] mFileBuffer;
+    //    delete mReaderThread;
+    //    delete mRingBuffer;
+    //    delete[] mFileBuffer;
+    //    mReaderThread = nullptr;
+    //    mRingBuffer = nullptr;
+    //    mFileBuffer = nullptr;
     mSf.close();
   }
   return true;
 }
 
 size_t SoundFileBuffered::read(float *buffer, int numFrames) {
-  size_t bytesRead =
-      mRingBuffer->read((char *)buffer, numFrames * channels() * sizeof(float));
-  if (bytesRead != numFrames * channels() * sizeof(float)) {
-    //    std::cerr << "Warning: underrun" << std::endl;
-    // TODO: handle underrun
+  if (mRingBuffer) {
+    size_t bytesRead = mRingBuffer->read(
+        (char *)buffer, numFrames * channels() * sizeof(float));
+    if (bytesRead != numFrames * channels() * sizeof(float)) {
+      //    std::cerr << "Warning: underrun" << std::endl;
+      // TODO: handle underrun
+    }
+    mCondVar.notify_one();
+    return bytesRead / (channels() * sizeof(float));
+  } else {
+    return 0;
   }
-  mCondVar.notify_one();
-  return bytesRead / (channels() * sizeof(float));
 }
 
 bool SoundFileBuffered::opened() const { return mSf.opened(); }
@@ -70,6 +127,7 @@ void SoundFileBuffered::readFunction(SoundFileBuffered *obj) {
     if (seek >= 0) { // Process seek request
       obj->mSf.seek(seek, SEEK_SET);
       obj->mSeek.store(-1);
+      obj->mCurPos = seek;
     }
     size_t framesToRead =
         obj->mRingBuffer->writeSpace() / (obj->channels() * sizeof(float));

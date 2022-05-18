@@ -9,6 +9,10 @@ endif($CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 include("../BuildExamples.cmake")
 
+if($CMAKE_SYSTEM_NAME} MATCHES "Windows")
+
+endif()
+
 find_library(FFTW_LIBRARY
   NAMES fftw3f)
 
