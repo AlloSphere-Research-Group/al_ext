@@ -54,10 +54,10 @@ bool SoundFileBuffered::open(std::string fullPath) {
       // We need to make sure that the condition variable is already waiting
       // when waking up to pre-fill buffer.
       mRingBuffer->clear();
-      //      while (mRingBuffer->readSpace() <
-      //             mBufferFrames * channels() * sizeof(float) - 8) {
-      //        mCondVar.notify_one();
-      //      }
+      while (mRingBuffer->readSpace() <
+             mBufferFrames * channels() * sizeof(float) - 8) {
+        mCondVar.notify_one();
+      }
 
       return true;
     }
