@@ -7,6 +7,17 @@ include("../BuildExamples.cmake")
 
 find_package(Assimp)
 
+set(ASSIMP_ROOT "" CACHE PATH "Set to ASSIMP source directory if you want to build it as part of the allolib build")
+
+if (NOT ASSIMP_LIBRARY)
+    if(NOT ASSIMP_ROOT STREQUAL "")
+        SET(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "Disable building assimp tools")
+        add_subdirectory(${ASSIMP_ROOT} "${CMAKE_CURRENT_SOURCE_DIR}/assimp-build")
+        set(ASSIMP_INCLUDE_DIR "${ASSIMP_ROOT}/include")
+        set(ASSIMP_LIBRARY assimp)
+    endif()
+endif(NOT ASSIMP_LIBRARY)
+
 if (NOT ASSIMP_LIBRARY)
   message("Assimp not found. Not building al_assets3d extension.")
 else()
