@@ -105,27 +105,24 @@ private:
 template <class TSharedState, unsigned PACKET_SIZE, unsigned PORT>
 bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
     ComputationDomain *parent) {
-  this->initializeSubdomains(true);
-  assert(parent != nullptr);
+  if (!ComputationDomain::mInitialized) {
+    bool ret = this->initializeSubdomains(true);
+    assert(parent != nullptr);
 
 #ifdef AL_USE_CUTTLEBONE
-  if (!mTaker) {
-    mTaker =
-        std::make_unique<cuttlebone::Taker<TSharedState, PACKET_SIZE, PORT>>();
-    mTaker->start();
-    //    mTaker->shouldLog = true;
-    bool ret = this->initializeSubdomains(false);
-
-    std::cout << "CuttleboneReceiveDomain: " << this->mAddress << ":" << PORT
-              << std::endl;
-    return ret;
-  } else {
-    std::cout << "CuttleboneReceiveDomain - already initialized" << std::endl;
-    bool ret = this->initializeSubdomains(false);
+    if (!mTaker) {
+      mTaker = std::make_unique<
+          cuttlebone::Taker<TSharedState, PACKET_SIZE, PORT>>();
+      mTaker->start();
+    }
+    ComputationDomain::callInitializeCallbacks();
+    ret &= this->initializeSubdomains(false);
+    ComputationDomain::mInitialized = true;
     return ret;
   }
+  return true;
 #else
-  return false;
+    return false;
 #endif
 }
 
@@ -134,33 +131,37 @@ template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
 class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
 public:
   bool init(ComputationDomain * /*parent*/ = nullptr) override {
-    this->initializeSubdomains(true);
+    if (!ComputationDomain::mInitialized) {
+      this->initializeSubdomains(true);
 
 #ifdef AL_USE_CUTTLEBONE
-    mBroadcaster.init(PACKET_SIZE, this->mAddress.c_str(), PORT, false);
-    mFrame = 0;
+      mBroadcaster.init(PACKET_SIZE, this->mAddress.c_str(), PORT, false);
+      mFrame = 0;
 
-    std::cout << "CuttleboneSendDomain: " << this->mAddress << ":" << PORT
-              << std::endl;
-    mRunThread = true;
-    if (!mSendThread) {
-      mSendThread = std::make_unique<std::thread>([&]() {
-        while (mRunThread) {
-          std::unique_lock<std::mutex> lk(mSendLock);
-          mSendCondition.wait(lk);
-          cuttlebone::PacketMaker<TSharedState, cuttlebone::Packet<PACKET_SIZE>>
-              packetMaker(*this->mState, mFrame);
-          while (packetMaker.fill(p))
-            mBroadcaster.send((unsigned char *)&p);
-          //          std::cout << "Sent frame " << mFrame << std::endl;
-          mFrame++;
-        }
-      });
+      std::cout << "CuttleboneSendDomain: " << this->mAddress << ":" << PORT
+                << std::endl;
+      mRunThread = true;
+      if (!mSendThread) {
+        mSendThread = std::make_unique<std::thread>([&]() {
+          while (mRunThread) {
+            std::unique_lock<std::mutex> lk(mSendLock);
+            mSendCondition.wait(lk);
+            cuttlebone::PacketMaker<TSharedState,
+                                    cuttlebone::Packet<PACKET_SIZE>>
+                packetMaker(*this->mState, mFrame);
+            while (packetMaker.fill(p))
+              mBroadcaster.send((unsigned char *)&p);
+            //          std::cout << "Sent frame " << mFrame << std::endl;
+            mFrame++;
+          }
+        });
+      }
+      bool ret = this->initializeSubdomains(false);
+      ComputationDomain::mInitialized = true;
+      return ret;
     }
-    bool ret = this->initializeSubdomains(false);
-    return ret;
 #else
-    return false;
+        return false;
 #endif
   }
 
@@ -173,7 +174,7 @@ public:
     this->tickSubdomains(false);
     return true;
 #else
-    return false;
+        return false;
 #endif
   }
 
@@ -193,8 +194,8 @@ public:
     this->cleanupSubdomains(false);
     return true;
 #else
-    //    mState = nullptr;
-    return false;
+        //    mState = nullptr;
+        return false;
 #endif
   }
 
