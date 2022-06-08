@@ -12,6 +12,7 @@
 
 #include "al/app/al_App.hpp"
 #include "al/app/al_ComputationDomain.hpp"
+#include "al/app/al_DistributedApp.hpp"
 #include "al/app/al_StateDistributionDomain.hpp"
 #include "al/spatial/al_Pose.hpp"
 
@@ -30,36 +31,38 @@ class CuttleboneSendDomain;
 /**
  * @brief CuttleboneDomain class
  * @ingroup App
+ *
+ * Class to manage cuttlebone sending and receiving of state.
+ *
+ * Use the enableCuttlebone() function to set things up for a
+ * DistributedAppWithState
  */
 template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
           unsigned PORT = 63059>
 class CuttleboneDomain : public StateDistributionDomain<TSharedState> {
 public:
-  std::shared_ptr<CuttleboneSendDomain<TSharedState, PACKET_SIZE, PORT>>
+  virtual bool init(ComputationDomain *parent = nullptr);
+
+  static std::shared_ptr<CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>>
+  enableCuttlebone(DistributedAppWithState<TSharedState> *app,
+                   bool prepend = true);
+
+  virtual std::shared_ptr<CuttleboneSendDomain<TSharedState, PACKET_SIZE, PORT>>
   addStateSender(std::string id = "",
                  std::shared_ptr<TSharedState> statePtr = nullptr);
 
-  std::shared_ptr<CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>>
+  virtual std::shared_ptr<
+      CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>>
   addStateReceiver(std::string id = "",
                    std::shared_ptr<TSharedState> statePtr = nullptr);
 
-  static std::shared_ptr<CuttleboneDomain> enableCuttlebone(App *app) {
+  static bool canUseCuttlebone() {
 #ifdef AL_USE_CUTTLEBONE
-    auto cbDomain =
-        app->graphicsDomain()
-            ->newSubDomain<CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>>(
-                true);
-    cbDomain->init(app->graphicsDomain().get());
-    return cbDomain;
+    return true;
 #else
-    (void)app;
-    std::cout << "Cuttlebone support not available. Ignoring enableCuttlebone()"
-              << std::endl;
-    return nullptr;
+    return false;
 #endif
   }
-
-private:
 };
 
 template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
@@ -101,6 +104,63 @@ private:
   std::unique_ptr<cuttlebone::Taker<TSharedState, PACKET_SIZE, PORT>> mTaker;
 #endif
 };
+
+// Implementation
+
+template <class TSharedState, unsigned PACKET_SIZE, unsigned PORT>
+bool CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>::init(
+    ComputationDomain *parent) {
+  return StateDistributionDomain<TSharedState>::init(parent);
+}
+
+template <class TSharedState, unsigned PACKET_SIZE, unsigned PORT>
+std::shared_ptr<CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>>
+CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>::enableCuttlebone(
+    DistributedAppWithState<TSharedState> *app, bool prepend) {
+  std::shared_ptr<CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>> cbDomain =
+      app->graphicsDomain()
+          ->template newSubDomain<
+              CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>>(prepend);
+  app->graphicsDomain()->removeSubDomain(app->simulationDomain());
+  if (cbDomain) {
+    app->mSimulationDomain = cbDomain;
+
+    cbDomain->simulationFunction =
+        std::bind(&App::onAnimate, app, std::placeholders::_1);
+    if (app->hasCapability(CAP_STATE_SEND)) {
+      auto sender = cbDomain->addStateSender("", cbDomain->statePtr());
+      assert(sender);
+      if (app->additionalConfig.find("broadcastAddress") !=
+          app->additionalConfig.end()) {
+        sender->setAddress(app->additionalConfig["broadcastAddress"]);
+      } else {
+        sender->setAddress("127.0.0.1");
+      }
+    } else if (app->hasCapability(CAP_STATE_RECEIVE)) {
+      auto receiver = cbDomain->addStateReceiver("", cbDomain->statePtr());
+
+      assert(receiver);
+      if (app->additionalConfig.find("broadcastAddress") !=
+          app->additionalConfig.end()) {
+        receiver->setAddress(app->additionalConfig["broadcastAddress"]);
+      } else {
+        receiver->setAddress("127.0.0.1");
+      }
+    } else {
+      std::cerr << "Cuttlebone domain enabled, but application has no state "
+                   "distribution capabilties enabled"
+                << std::endl;
+    }
+    if (!cbDomain->init(nullptr)) {
+      cbDomain = nullptr;
+      return nullptr;
+    }
+
+  } else {
+    std::cerr << "ERROR creating cuttlebone domain" << std::endl;
+  }
+  return cbDomain;
+}
 
 template <class TSharedState, unsigned PACKET_SIZE, unsigned PORT>
 bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(

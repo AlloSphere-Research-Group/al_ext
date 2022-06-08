@@ -9,6 +9,8 @@
 
 using namespace al;
 
+// This example shows how to serialize a Mesh in a shared state
+
 const size_t maxMeshDataSize = 4 * 1024 * 64;
 
 struct SharedState {
@@ -31,7 +33,7 @@ public:
     navControl().active(false);
 
     auto cuttleboneDomain =
-        CuttleboneStateSimulationDomain<SharedState>::enableCuttlebone(this);
+        CuttleboneDomain<SharedState>::enableCuttlebone(this);
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
@@ -40,6 +42,10 @@ public:
     std::cout << "Bandwidth: "
               << graphicsDomain()->fps() * sizeof(SharedState) * 8 / 10e6
               << " Gb/s" << std::endl;
+    if (!isPrimary()) {
+      // Don't draw omni, draw regular view
+      omniRendering->drawOmni = false;
+    }
   }
 
   void onAnimate(double /*dt*/) override {

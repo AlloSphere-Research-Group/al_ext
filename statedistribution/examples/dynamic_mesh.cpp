@@ -84,7 +84,7 @@ public:
     registerDynamicScene(scene);
 
     auto cuttleboneDomain =
-        CuttleboneStateSimulationDomain<SharedState>::enableCuttlebone(this);
+        CuttleboneDomain<SharedState>::enableCuttlebone(this);
 
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;

@@ -10,6 +10,11 @@
 
 // This example shows using shared distributed state to control voices from
 // DynamicScene
+// For more information on dynamic scene and PolySynth see
+// allolib/examples/scene or allolib_playground/tutorials/sequencing
+
+// Because DynamicScene allows using more voices that the state can potentially
+// hold, only a subset of the voices mesh are sent on every frame
 using namespace al;
 
 const size_t maxMeshDataSize = 256;
@@ -28,14 +33,12 @@ struct SharedState {
   SerializedMesh meshes[maxVoices];
 };
 
-//
+// Define a voice to draw a mesh
 struct MeshVoice : public PositionedVoice {
-
   Mesh mesh;
 
   void init() override {
     mesh.primitive(Mesh::TRIANGLE_STRIP);
-
     registerParameter(parameterPose()); // Send pose to replica instances
   }
 
@@ -73,7 +76,7 @@ public:
     registerDynamicScene(scene);
 
     auto cuttleboneDomain =
-        CuttleboneStateSimulationDomain<SharedState>::enableCuttlebone(this);
+        CuttleboneDomain<SharedState>::enableCuttlebone(this);
 
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
@@ -90,6 +93,7 @@ public:
       auto *voice = scene.getActiveVoices();
       size_t counter = 0;
       while (voice && counter < maxVoices) {
+        // serialize mesh into state
         if (!ser::serializeMesh(
                 ((MeshVoice *)voice)->mesh, state().meshes[counter].meshData,
                 state().meshes[counter].meshVertices,
@@ -97,8 +101,8 @@ public:
                 state().meshes[counter].meshColors, maxMeshDataSize)) {
           std::cerr << "ERROR: could not serialize mesh" << std::endl;
         } else {
+          // Prepare the next voice if allowed
           if (counter < maxVoices) {
-
             state().meshes[counter].id = voice->id();
             voice = voice->next;
           }
@@ -106,7 +110,7 @@ public:
         counter++;
       }
     } else {
-
+      // For the receiver, we write the mesh according to voice id
       auto *voice = scene.getActiveVoices();
 
       while (voice) {
@@ -132,8 +136,8 @@ public:
   }
 
   bool onKeyDown(Keyboard const &k) override {
-    if (k.key() == ' ') {
-      // The space bar will turn off omni rendering
+    if (k.key() == 'o') {
+      // 'o' will turn off omni rendering
       if (omniRendering) {
         omniRendering->drawOmni = !omniRendering->drawOmni;
       } else {

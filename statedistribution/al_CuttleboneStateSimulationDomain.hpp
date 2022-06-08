@@ -25,85 +25,12 @@ static bool canUseCuttlebone() {
 #endif
 }
 
+// For backward compatibility. Use CuttleboneDomain instead
 template <class TSharedState, unsigned PACKET_SIZE = 1400,
           unsigned PORT = 63059>
-class CuttleboneStateSimulationDomain
-    : public StateDistributionDomain<TSharedState> {
-public:
-  virtual bool init(ComputationDomain *parent = nullptr) {
-    return StateDistributionDomain<TSharedState>::init(parent);
-  }
-
-  virtual std::shared_ptr<StateSendDomain<TSharedState>>
-  addStateSender(std::string id = "") {
-    auto newDomain = this->template newSubDomain<
-        CuttleboneSendDomain<TSharedState, PACKET_SIZE, PORT>>(false);
-    newDomain->setId(id);
-    newDomain->setStatePointer(this->statePtr());
-    this->mIsSender = true;
-    return newDomain;
-  }
-
-  virtual std::shared_ptr<StateReceiveDomain<TSharedState>>
-  addStateReceiver(std::string id = "") {
-    auto newDomain = this->template newSubDomain<
-        CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>>(true);
-    newDomain->setId(id);
-    newDomain->setStatePointer(this->statePtr());
-    return newDomain;
-  }
-
-  static std::shared_ptr<
-      CuttleboneStateSimulationDomain<TSharedState, PACKET_SIZE, PORT>>
-  enableCuttlebone(DistributedAppWithState<TSharedState> *app,
-                   bool prepend = true) {
-    std::shared_ptr<
-        CuttleboneStateSimulationDomain<TSharedState, PACKET_SIZE, PORT>>
-        cbDomain = app->graphicsDomain()
-                       ->template newSubDomain<CuttleboneStateSimulationDomain<
-                           TSharedState, PACKET_SIZE, PORT>>(prepend);
-    app->graphicsDomain()->removeSubDomain(app->simulationDomain());
-    if (cbDomain) {
-      //      cbDomain->A
-      app->mSimulationDomain = cbDomain;
-
-      cbDomain->simulationFunction =
-          std::bind(&App::onAnimate, app, std::placeholders::_1);
-      if (app->hasCapability(CAP_STATE_SEND)) {
-        auto sender = cbDomain->addStateSender();
-        assert(sender);
-        if (app->additionalConfig.find("broadcastAddress") !=
-            app->additionalConfig.end()) {
-          sender->setAddress(app->additionalConfig["broadcastAddress"]);
-        } else {
-          sender->setAddress("127.0.0.1");
-        }
-      } else if (app->hasCapability(CAP_STATE_RECEIVE)) {
-        auto receiver = cbDomain->addStateReceiver();
-
-        assert(receiver);
-        if (app->additionalConfig.find("broadcastAddress") !=
-            app->additionalConfig.end()) {
-          receiver->setAddress(app->additionalConfig["broadcastAddress"]);
-        } else {
-          receiver->setAddress("127.0.0.1");
-        }
-      } else {
-        std::cerr << "Cuttlebone domain enabled, but application has no state "
-                     "distribution capabilties enabled"
-                  << std::endl;
-      }
-      if (!cbDomain->init(nullptr)) {
-        cbDomain = nullptr;
-        return nullptr;
-      }
-
-    } else {
-      std::cerr << "ERROR creating cuttlebone domain" << std::endl;
-    }
-    return cbDomain;
-  }
-};
+class [[deprecated(
+    "Use CuttleboneDomain instead")]] CuttleboneStateSimulationDomain
+    : public CuttleboneDomain<TSharedState, PACKET_SIZE, PORT>{};
 
 } // namespace al
 

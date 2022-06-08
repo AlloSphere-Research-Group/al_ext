@@ -3,25 +3,31 @@
 #include "al/graphics/al_Font.hpp"
 #include "al/graphics/al_Shapes.hpp"
 
-#include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
+#include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
+
+// This example shows how to add cuttlebone state distribution in a
+// DistributedAppWithState
 
 using namespace al;
 
+// Create the data structure you want to share
 struct State {
   al::Color backgroundColor{1.0f, 1.0f, 1.0f, 1.0f};
   al::Pose pose;
   uint64_t counter{0};
 };
 
+// Inherit from DistributedAppWithState<State> using the data structure for the
+// state as the template argument
 struct MyDistributedApp : public DistributedAppWithState<State> {
   Mesh mesh;
   // You can keep a pointer to the cuttlebone domain
   // This can be useful to ask the domain if it is a sender or receiver
-  std::shared_ptr<CuttleboneStateSimulationDomain<State>> cuttleboneDomain;
+  // An alternative way to determine this is using DistributedApp::isPrimary()
+  std::shared_ptr<CuttleboneDomain<State>> cuttleboneDomain;
 
   void onInit() override {
-    cuttleboneDomain =
-        CuttleboneStateSimulationDomain<State>::enableCuttlebone(this);
+    cuttleboneDomain = CuttleboneDomain<State>::enableCuttlebone(this);
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
@@ -34,11 +40,16 @@ struct MyDistributedApp : public DistributedAppWithState<State> {
     // Check if we are a sender or a receiver and write or read from state
     // accordingly
     if (cuttleboneDomain->isSender()) {
+      // Write state for sender
       state().backgroundColor.r = float(mouse().x()) / width();
       state().backgroundColor.g = float(mouse().y()) / height();
       state().pose = pose();
       state().counter++;
     } else {
+      // Read state for receiver
+      // Note that we don't need to read everything here as we will use the
+      // values of backgroundColor and counter from the state directly in
+      // onDraw()
       pose() = state().pose;
       std::cout << state().counter << std::endl;
     }
