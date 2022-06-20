@@ -532,54 +532,59 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
 uint8_t *VideoTexture::getVideoFrame(double time) {
 
   if (video_state.mVideoFramesRead != video_state.mVideoFramesWrite) {
+    // Frames are available in buffer
     auto *nextFrame = &video_state.mVideoFrames[video_state.mVideoFramesRead];
     if (time == -1) {
+      // Just deliver next frame
       nextFrame->consumed = true;
       return nextFrame->data.data();
     } else {
-      double frameTime = 1.0 / fps();
-      int maxDriftFrames = 5;
-      if (time == 0.0) {
-        seek(0);
-        return nullptr;
-      }
-      if (time > nextFrame->pts && (time - nextFrame->pts) < frameTime) {
+      double frameInterval = 1.0 / fps();
+      int frameLookAhead = 1;
+      int maxDriftFrames = 3;
+
+      // Perfect match
+      if (time < nextFrame->pts && (nextFrame->pts - time) < frameInterval) {
         nextFrame->consumed = true;
-      } else if (fabs(nextFrame->pts - time) > (frameTime * maxDriftFrames)) {
-        auto pos = time + (frameTime * (maxDriftFrames - 1));
-        if (time == 0.0) {
-          pos = 0;
-        }
-        seek(pos);
-        std::cout << "request seeking back " << pos << std::endl;
-        return nullptr;
-      } else if (time - nextFrame->pts > (frameTime * maxDriftFrames)) {
-        auto pos = time + (frameTime * (maxDriftFrames - 1));
-        seek(pos);
-        std::cout << "request seeking forward " << pos << std::endl;
-        return nullptr;
+        return nextFrame->data.data();
       }
+      // If time is a little behind the buffer, just return frame in buffer, but
+      // dont consume it. Time should catch up to this frame.
       if (nextFrame->pts > time) {
-        if ((nextFrame->pts - time) < (frameTime * maxDriftFrames)) {
+        if ((nextFrame->pts - time) < (frameInterval * maxDriftFrames)) {
           // return frame without consuming it
           return nextFrame->data.data();
-        } else {
-          seek(time + (frameTime * (maxDriftFrames - 1)));
-          return nullptr;
         }
       }
-      while (nextFrame->pts < time) {
+
+      // Check to see if requested time is in buffer (in case time has moved
+      // faster and we need to skip frames)
+      while (nextFrame && nextFrame->pts < time) {
         if (video_state.mVideoFramesRead == video_state.mVideoFramesWrite) {
-          return nullptr;
+          break;
         }
         nextFrame->consumed = true;
         releaseVideoFrame();
         nextFrame = &video_state.mVideoFrames[video_state.mVideoFramesRead];
-        video_state.videoFrameSignal.notify_one();
       }
-      return nextFrame->data.data();
+
+      if (nextFrame && (nextFrame->pts - time) < frameInterval) {
+        // Frame available in buffer
+        nextFrame->consumed = true;
+        return nextFrame->data.data();
+      }
+
+      // If we get here, we need to seek
+      auto pos = time + (frameInterval * frameLookAhead);
+      seek(pos);
+
+      video_state.videoFrameSignal.notify_one();
     }
   } else {
+    // No frames available in buffer, seek and fill buffer
+    if (time >= 0) {
+      seek(time);
+    }
     video_state.videoFrameSignal.notify_one();
   }
 
@@ -605,7 +610,7 @@ int VideoTexture::getCurrentFrameType() {
 }
 
 void VideoTexture::releaseVideoFrame() {
-  if (video_state.mVideoFramesRead != video_state.mVideoFramesWrite) {
+  while (video_state.mVideoFramesRead != video_state.mVideoFramesWrite) {
     if (video_state.mVideoFrames[video_state.mVideoFramesRead].consumed) {
       int val = video_state.mVideoFramesRead;
       if (mVerbose) {
@@ -618,9 +623,12 @@ void VideoTexture::releaseVideoFrame() {
       } else {
         video_state.mVideoFramesRead = val + 1;
       }
+    } else {
+      video_state.videoFrameSignal.notify_one();
+      return;
     }
-    video_state.videoFrameSignal.notify_one();
   }
+  video_state.videoFrameSignal.notify_one();
 }
 
 // uint8_t *VideoDecoder2::getAudioFrame(double external_clock) {
