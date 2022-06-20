@@ -5,6 +5,7 @@ ${CMAKE_CURRENT_LIST_DIR}
 
 include("../BuildExamples.cmake")
 
+# C:/Users/Andres/source/repos/ffmpeg-n4.4-78-g031c0cb0b4-win64-gpl-shared-4.4/
 set(FFMPEG_ROOT "/alloshare/code/kenny/ffmpeg_install/" CACHE STRING "Path to FFMPEG lib and include directories")
 message("Using FFMPEG at ${FFMPEG_ROOT}")
 
@@ -31,10 +32,12 @@ else()
     message("Using Libav ${AVCODEC_LIBRARY} SDK from: ${FFMPEG_ROOT}")
     set(THIS_EXTENSION_SRC
       "${CMAKE_CURRENT_LIST_DIR}/src/al_VideoDecoder.cpp"
+      "${CMAKE_CURRENT_LIST_DIR}/src/al_VideoTexture.cpp"
     )
 
     set(THIS_EXTENSION_HEADERS
       "${CMAKE_CURRENT_LIST_DIR}/al_VideoDecoder.hpp"
+      "${CMAKE_CURRENT_LIST_DIR}/al_VideoTexture.hpp"
     )
 
     set(THIS_EXTENSION_LIBRARY_NAME al_video)
@@ -77,5 +80,7 @@ else()
 #  set(CURRENT_EXTENSION_DEFINITIONS -DAL_EXT_ASSETS3D)
 #  get_filename_component(ASSIMP_ROOT_DIR "${ASSIMP_LIBRARY}" DIRECTORY)
 #  set(CURRENT_EXTENSION_DLLS "${ASSIMP_ROOT_DIR}/../../bin/x64/assimp-vc140-mt.dll")
+
+  add_subdirectory(tests)
 
 endif()
