@@ -77,7 +77,7 @@ struct VideoTextureState {
   bool dry_run;
   // ** Global Quit Flag **
   int global_quit;
-  bool verbose{true};
+  bool verbose{false};
 };
 
 class VideoTexture {
@@ -136,6 +136,8 @@ public:
 
   // Skip copying pixels when reading through file
   void setDryRun(bool dryRun);
+
+  void setVerbose(bool verbose) { video_state.verbose = verbose; }
 
 private:
   // open & initialize video/audio stream components
