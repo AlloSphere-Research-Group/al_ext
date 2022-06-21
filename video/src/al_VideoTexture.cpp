@@ -235,6 +235,7 @@ void VideoTexture::start() {
     video_state.frameSignalLock.unlock();
     // Fill buffer before returning
     while (readFramesInBuffer() < (VIDEO_BUFFER_SIZE - 1)) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
   }
 
@@ -301,20 +302,11 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
     if (vs->seek_requested) {
       vs->mVideoFramesRead = vs->mVideoFramesWrite = 0;
       int video_stream_index = -1;
-      //      int audio_stream_index = -1;
       double video_seek_target = vs->seek_pos;
-      //      int64_t audio_seek_target = vs->seek_pos;
 
-      if (vs->video_st)
+      if (vs->video_st) {
         video_stream_index = vs->video_st_idx;
-      //      if (vs->audio_st && vs->audio_enabled)
-      //        audio_stream_index = vs->audio_st_idx;
-
-      //      if (video_stream_index >= 0) {
-      //        video_seek_target = av_rescale_q(
-      //            video_seek_target, av_get_time_base_q(),
-      //            vs->format_ctx->streams[video_stream_index]->time_base);
-      //      }
+      }
       video_seek_target *=
           (vs->format_ctx->streams[video_stream_index]->time_base.den /
            (double)vs->format_ctx->streams[video_stream_index]->time_base.num);
@@ -325,18 +317,10 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
       //      }
       //      auto m_streamTimebase =
       //          av_q2d(vs->video_st->time_base) * 1000.0 * 10000.0;
-      //      auto startTime = vs->video_st->start_time != AV_NOPTS_VALUE
-      //                           ? (long)(vs->video_st->start_time *
-      //                           m_streamTimebase) : 0;
       //      double fps =
       //          av_q2d(av_guess_frame_rate(vs->format_ctx, vs->video_st,
       //          NULL));
       //      video_seek_target = video_seek_target * fps;
-
-      //      auto frmseekPos =
-      //          av_rescale(video_seek_target, vs->video_st->time_base.den,
-      //                     vs->video_st->time_base.num);
-      //      frmseekPos /= 1000;
 
       if (vs->verbose) {
         std::cout << "[[ " +
@@ -406,6 +390,25 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
           std::cout << "ERROR: " << errbuf << " --  " << AVERROR(EAGAIN)
                     << std::endl;
         }
+        // get the estimated time stamp
+        double pts = frame->best_effort_timestamp;
+
+        // if guess failed
+        if (pts == AV_NOPTS_VALUE) {
+          // if we don't have a pts, use the video clock
+          pts = vs->video_clock;
+        } else {
+          // convert pts using video stream's time base
+          pts *= av_q2d(vs->video_st->time_base);
+
+          // if we have pts, set the video_clock to it
+          vs->video_clock = pts;
+        }
+
+        // update video clock if frame is delayed
+        vs->video_clock +=
+            0.5 * av_q2d(vs->video_st->time_base) * frame->repeat_pict;
+
         if (seek_applied) {
           //            if (frame->pict_type != AV_PICTURE_TYPE_I) {
 
@@ -443,6 +446,9 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
             //                        << frame->pts
             //                        << std::endl;
             if (currentPts > vs->seek_start_pos && currentPts > vs->seek_pos) {
+              if (vs->verbose) {
+                std::cout << "Reseek back" << std::endl;
+              }
               vs->seek_requested = 1;
 
               goto after_wait; // Need more packets for frame
@@ -465,25 +471,6 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
           vs->global_quit = -1;
           break;
         }
-
-        // get the estimated time stamp
-        double pts = frame->best_effort_timestamp;
-
-        // if guess failed
-        if (pts == AV_NOPTS_VALUE) {
-          // if we don't have a pts, use the video clock
-          pts = vs->video_clock;
-        } else {
-          // convert pts using video stream's time base
-          pts *= av_q2d(vs->video_st->time_base);
-
-          // if we have pts, set the video_clock to it
-          vs->video_clock = pts;
-        }
-
-        // update video clock if frame is delayed
-        vs->video_clock +=
-            0.5 * av_q2d(vs->video_st->time_base) * frame->repeat_pict;
 
         // if (vs->video_clock < vs->master_clock) {
         //   break;
@@ -540,7 +527,7 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
       return nextFrame->data.data();
     } else {
       double frameInterval = 1.0 / fps();
-      int frameLookAhead = 1;
+      int frameLookAhead = 0;
       int maxDriftFrames = 3;
 
       // Perfect match
@@ -561,6 +548,7 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
       // faster and we need to skip frames)
       while (nextFrame && nextFrame->pts < time) {
         if (video_state.mVideoFramesRead == video_state.mVideoFramesWrite) {
+          nextFrame = nullptr;
           break;
         }
         nextFrame->consumed = true;
