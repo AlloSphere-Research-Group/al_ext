@@ -7,10 +7,15 @@ int main() {
   std::cout << "Press ']' to advance, '[' to rewind. Enter only for next frame"
             << std::endl;
   VideoTexture videoDecoder{false};
-  videoDecoder.load("C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
-                    "360-4k-30fps-noaudio.m4v");
-  //  videoDecoder.load(
-  //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4");
+  videoDecoder.load(
+
+      //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4"
+      //      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
+      //                    "360-4k-30fps-noaudio.m4v"
+      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+      "360-Reencoded.m4v"
+
+  );
 
   videoDecoder.start();
 
