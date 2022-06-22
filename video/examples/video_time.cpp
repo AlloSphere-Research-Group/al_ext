@@ -82,8 +82,8 @@ public:
       g.popMatrix();
     }
 
-    auto diff = videoDecoder.getCurrentDecoderTime() - time;
-    std::string text = toTimeCode(videoDecoder.getCurrentDecoderTime()) + "  " +
+    auto diff = videoDecoder.getCurrentFrameTime() - time;
+    std::string text = toTimeCode(videoDecoder.getCurrentFrameTime()) + "  " +
                        toTimeCode(time) + "   " + toTimeCode(diff);
     FontRenderer::render(g, text.c_str(), Vec3d(-0.33, -0.2, -1), 0.03, 24);
 

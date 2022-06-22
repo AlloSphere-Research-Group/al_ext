@@ -1,69 +1,96 @@
 #include "al/app/al_App.hpp"
 #include "al/graphics/al_Shapes.hpp"
 
-#include "al_ext/video/al_VideoDecoder.hpp"
+#include "al/graphics/al_Font.hpp"
+#include "al_ext/video/al_VideoTexture.hpp"
 
 class VideoApp : public App {
 public:
-  virtual void onCreate() override {
+  double time = 0;
 
-    videoDecoder.enableAudio(false);
-    if (!videoDecoder.load(mVideoFileToLoad.c_str())) {
-      std::cerr << "Error loading video file" << std::endl;
-      quit();
-    }
-    // generate texture
-    tex.filter(Texture::LINEAR);
-    tex.wrap(Texture::REPEAT, Texture::CLAMP_TO_EDGE, Texture::CLAMP_TO_EDGE);
-    tex.create2D(videoDecoder.width(), videoDecoder.height(), Texture::RGBA8,
-                 Texture::RGBA, Texture::UBYTE);
-
+  virtual void onInit() override {
+    // FPS can't be set on onCreate(), has to be set here
     fps(videoDecoder.fps());
-    mPlaying = true;
-
     aspectRatio = videoDecoder.width() / (double)videoDecoder.height();
-    videoDecoder.start();
+  }
+  virtual void onCreate() override {
+    videoDecoder.start(); // Must be run on onCreate()
   }
 
   virtual void onAnimate(al_sec dt) override {
+    time += dt;
+
     if (mPlaying) {
-      uint8_t *frame = videoDecoder.getVideoFrame();
-      if (frame) {
-        tex.submit(frame);
+      if (!videoDecoder.updateTexture(-1)) {
+        std::cout << " No new frame" << std::endl;
       }
     }
   }
 
   virtual void onDraw(Graphics &g) override {
     g.clear(0.1f);
-    g.pushMatrix();
-    g.translate(0, 0, -3);
-    g.rotate(180, 0, 1, 0);
-    g.quad(tex, -0.5 * aspectRatio, -0.5, aspectRatio, 1, true);
-    g.popMatrix();
+    {
+      g.pushMatrix();
+      g.translate(0, 0, -3);
+      // The video texture will be inverted.
+      g.rotate(180, 0, 1, 0);
+      g.texture();
+      // Get video texture
+      auto &tex = videoDecoder.texture();
+      // draw it
+      g.quad(tex, -0.5 * aspectRatio, -0.5, aspectRatio, 1, true);
+      g.popMatrix();
+    }
+    std::string text =
+        "Buffer: " + std::to_string(videoDecoder.readFramesInBuffer()) +
+        "/7   " + std::to_string(videoDecoder.getCurrentFrameTime()) + "  " +
+        std::to_string(time) +
+        " fps: " + std::to_string(graphicsDomain()->fps());
+    FontRenderer::render(g, text.c_str(), Vec3d(-0.33, 0.2, -1), 0.03, 24);
   }
 
-  void setVideoFile(std::string videoFileUrl) {
-    mVideoFileToLoad = videoFileUrl;
+  bool loadVideoFile(std::string videoFileUrl) {
+    if (!videoDecoder.load(videoFileUrl.c_str())) {
+      std::cerr << "Error loading video file" << std::endl;
+      return false;
+    }
+    return true;
+  }
+
+  bool onKeyDown(Keyboard const &k) override {
+    if (k.key() == ' ') {
+      mPlaying = !mPlaying;
+    }
+    if (k.key() == '.') { // move one frame forward
+      if (!videoDecoder.updateTexture(-1)) {
+        std::cout << " No new frame" << std::endl;
+      } else {
+        std::cout << "New frame" << std::endl;
+      }
+    }
+    return true;
   }
 
   double aspectRatio{1.0};
+  bool mPlaying{false};
 
 private:
   Texture tex;
 
-  VideoDecoder videoDecoder;
-  std::string mVideoFileToLoad;
-
-  bool mPlaying{false};
+  VideoTexture videoDecoder;
 };
 
 int main() {
   VideoApp app;
-  // Set vide file here
-  app.setVideoFile("C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
-                   "360-4k-30fps-noaudio.m4v");
+  // Set video file here
+  auto videoFile = "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
+                   "360-4k-30fps-noaudio.m4v";
+  //  auto videoFile =
+  //      "C:/Users/Andres/Downloads/LW_KT_Edit_0103_good_75mbps_8k_360.mp4";
 
+  if (!app.loadVideoFile(videoFile)) {
+    return -1;
+  }
   app.start();
   return 0;
 }

@@ -49,6 +49,7 @@ TEST(Video, SeekForward) {
 
   );
   videoDecoder.setVerbose(true);
+  videoDecoder.setSeekOffset(0);
   videoDecoder.start();
 
   EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);
@@ -58,7 +59,7 @@ TEST(Video, SeekForward) {
   auto frameInterval = 1.0 / videoDecoder.fps();
 
   std::vector<int> targetFrames = {5,   10,  30,  40,  51,  72,
-                                   150, 152, 154, 156, 158, 500};
+                                   100, 102, 104, 106, 108, 500};
   //  std::vector<int> targetFrames = {5, 10, 30, 40, 51, 72, 150};
 
   for (const auto &tgtFrame : targetFrames) {
@@ -92,6 +93,7 @@ TEST(Video, SeekBack) {
 
   );
 
+  videoDecoder.setSeekOffset(0);
   videoDecoder.start();
 
   EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);
@@ -134,6 +136,7 @@ TEST(Video, SyncDecode) {
 
   );
   videoDecoder.setVerbose(true);
+  videoDecoder.setSeekOffset(0);
   videoDecoder.start();
 
   EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);

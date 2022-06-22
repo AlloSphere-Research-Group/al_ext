@@ -514,7 +514,7 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
 
       // Perfect match
       if (time >= (nextFrame->pts - 0.0001) &&
-          (time - nextFrame->pts) < frameInterval) {
+          (time - nextFrame->pts + 0.0001) < frameInterval) {
         nextFrame->consumed = true;
         return nextFrame->data.data();
       }
@@ -532,7 +532,8 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
               (nextFrame->pts + ((VIDEO_BUFFER_SIZE - 1) * frameInterval))) {
         // Check to see if requested time is in buffer (in case time has moved
         // faster and we need to skip frames)
-        while (nextFrame && nextFrame->pts - 0.0001 < time) {
+        while (nextFrame && nextFrame->pts - 0.0001 < time &&
+               nextFrame->pts != time) {
           if (video_state.mVideoFramesRead == video_state.mVideoFramesWrite) {
             nextFrame = nullptr;
             break;
