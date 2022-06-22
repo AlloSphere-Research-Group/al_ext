@@ -24,6 +24,7 @@ void VideoTexture::init() {
 
   video_state.seek_requested = 0;
   video_state.seek_pos = 0;
+  video_state.seek_offset = 0;
 
   video_state.dry_run = false;
   video_state.global_quit = 0;
@@ -106,6 +107,7 @@ bool VideoTexture::load(const char *url) {
       return false;
     }
   }
+  video_state.seek_offset = 5 * fps();
 
   if (0) {
     // HW decoding
@@ -280,7 +282,7 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
     return;
   }
 
-  bool seek_applied = false;
+  vs->seek_applied = false;
   vs->readyMarker->set_value(); // report thread is initialized
   // check global quit flag
   if (!readNextPacket(vs, packet)) {
@@ -296,62 +298,72 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
     {
       std::unique_lock<std::mutex> lk(vs->frameSignalLock);
       vs->videoFrameSignal.wait(lk);
+      if (vs->verbose) {
+        std::cout << "Wake up to fill buffer" << std::endl;
+      }
     }
   after_wait:
     // seeking
     if (vs->seek_requested) {
-      vs->mVideoFramesRead = vs->mVideoFramesWrite = 0;
-      int video_stream_index = -1;
-      double video_seek_target = vs->seek_pos;
+      if (vs->last_seek != vs->seek_pos) {
 
-      if (vs->video_st) {
-        video_stream_index = vs->video_st_idx;
-      }
-      video_seek_target *=
-          (vs->format_ctx->streams[video_stream_index]->time_base.den /
-           (double)vs->format_ctx->streams[video_stream_index]->time_base.num);
-      //      if (audio_stream_index >= 0) {
-      //        audio_seek_target = av_rescale_q(
-      //            audio_seek_target, av_get_time_base_q(),
-      //            vs->format_ctx->streams[audio_stream_index]->time_base);
-      //      }
-      //      auto m_streamTimebase =
-      //          av_q2d(vs->video_st->time_base) * 1000.0 * 10000.0;
-      //      double fps =
-      //          av_q2d(av_guess_frame_rate(vs->format_ctx, vs->video_st,
-      //          NULL));
-      //      video_seek_target = video_seek_target * fps;
+        vs->mVideoFramesRead = vs->mVideoFramesWrite = 0;
+        int video_stream_index = -1;
+        double video_seek_target = vs->seek_pos + vs->seek_offset;
 
-      if (vs->verbose) {
-        std::cout << "[[ " +
-                         std::to_string(av_get_time_base_q().num /
-                                        (double)av_get_time_base_q().den) +
-                         "]]"
-                  << std::endl;
-        std::cout << "[seek to " + std::to_string(vs->seek_pos) + "  " +
-                         std::to_string(video_seek_target) + "]"
-                  << std::endl;
-      }
-      // TODO Should check if we have the frame in the buffer
-      vs->seek_start_pos = vs->video_clock;
-      int flags = 0; // AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY
-      if (vs->seek_pos < vs->video_clock) {
-        flags |= AVSEEK_FLAG_BACKWARD;
-      }
-      int ret = av_seek_frame(vs->format_ctx, video_stream_index,
-                              video_seek_target, flags);
-      if (ret < 0) {
-        std::cerr << "Error seeking" << std::endl;
-      }
-      avcodec_flush_buffers(vs->video_ctx);
-      //      avcodec_flush_buffers(vs->audio_ctx);
+        if (vs->video_st) {
+          video_stream_index = vs->video_st_idx;
+        }
+        video_seek_target *=
+            (vs->format_ctx->streams[video_stream_index]->time_base.den /
+             (double)vs->format_ctx->streams[video_stream_index]
+                 ->time_base.num);
+        //      if (audio_stream_index >= 0) {
+        //        audio_seek_target = av_rescale_q(
+        //            audio_seek_target, av_get_time_base_q(),
+        //            vs->format_ctx->streams[audio_stream_index]->time_base);
+        //      }
+        //      auto m_streamTimebase =
+        //          av_q2d(vs->video_st->time_base) * 1000.0 * 10000.0;
+        //      double fps =
+        //          av_q2d(av_guess_frame_rate(vs->format_ctx, vs->video_st,
+        //          NULL));
+        //      video_seek_target = video_seek_target * fps;
 
-      //      if (vs->audio_st && vs->audio_enabled)
-      //        ret &= av_seek_frame(vs->format_ctx, audio_stream_index,
-      //                             audio_seek_target, vs->seek_flags);
+        if (vs->verbose) {
+          std::cout << "[[ " +
+                           std::to_string(av_get_time_base_q().num /
+                                          (double)av_get_time_base_q().den) +
+                           "]]"
+                    << std::endl;
+          std::cout << "[seek to " + std::to_string(vs->seek_pos) + "  " +
+                           std::to_string(video_seek_target) + "]"
+                    << std::endl;
+        }
+        // TODO Should check if we have the frame in the buffer
+        vs->seek_start_pos = vs->video_clock;
+        vs->last_seek = vs->seek_pos;
+        int flags = 0; // AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY
+        if (vs->seek_pos < vs->video_clock) {
+          flags |= AVSEEK_FLAG_BACKWARD;
+        }
+        int ret = av_seek_frame(vs->format_ctx, video_stream_index,
+                                video_seek_target, flags);
+        if (ret < 0) {
+          std::cerr << "Error seeking" << std::endl;
+        }
+        avcodec_flush_buffers(vs->video_ctx);
+        //      avcodec_flush_buffers(vs->audio_ctx);
 
-      vs->seek_requested = 0;
-      seek_applied = true;
+        //      if (vs->audio_st && vs->audio_enabled)
+        //        ret &= av_seek_frame(vs->format_ctx, audio_stream_index,
+        //                             audio_seek_target, vs->seek_flags);
+        //      if (!readNextPacket(vs, packet)) {
+        //        vs->global_quit = 1;
+        //      }
+        vs->seek_requested = false;
+        vs->seek_applied = true;
+      }
       // std::cout << "seek end" << std::endl;
     }
 
@@ -409,43 +421,16 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
         vs->video_clock +=
             0.5 * av_q2d(vs->video_st->time_base) * frame->repeat_pict;
 
-        if (seek_applied) {
-          //            if (frame->pict_type != AV_PICTURE_TYPE_I) {
-
-          //              if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
-          //              {
-
-          //                std::cerr << "After seek moving forward - No time
-          //                stamp"
-          //                          << std::endl;
-          //              } else {
-
-          //                std::cerr << "After seek moving forward to i frame
-          //                from "
-          //                          << frame->best_effort_timestamp <<
-          //                          std::endl;
-          //                //                  vs->seek_pos
-          //              }
-          //              break;
-          //            } else {
+        if (vs->seek_applied) {
           if (frame->best_effort_timestamp == AV_NOPTS_VALUE) {
-
             std::cerr << "Iframe - no time stamp" << std::endl;
             break;
           } else {
-            //              auto currentPts = frame->best_effort_timestamp *
-            //                                (vs->video_st->time_base.den /
-            //                                 (double)vs->video_st->time_base.num);
-
             auto currentPts = frame->best_effort_timestamp *
                               (vs->video_st->time_base.num /
                                (double)vs->video_st->time_base.den);
-            //              std::cerr << "After seek moving forward to i frame
-            //              from "
-            //                        << frame->best_effort_timestamp << " "
-            //                        << frame->pts
-            //                        << std::endl;
-            if (currentPts > vs->seek_start_pos && currentPts > vs->seek_pos) {
+            if (currentPts - 0.0001 > vs->seek_start_pos &&
+                currentPts - 0.0001 > (vs->seek_pos + vs->seek_offset)) {
               if (vs->verbose) {
                 std::cout << "Reseek back" << std::endl;
               }
@@ -453,11 +438,10 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
 
               goto after_wait; // Need more packets for frame
             }
-            if (currentPts < vs->seek_pos) {
-              break;
+            if (currentPts + 0.0001 < (vs->seek_pos + vs->seek_offset)) {
+              goto after_wait;
             }
           }
-          //            }
         }
         // check if entire frame was decoded
         if (ret == AVERROR(EAGAIN)) {
@@ -489,10 +473,8 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
         }
         vs->mVideoFrames[vs->mVideoFramesWrite].consumed = false;
         vs->mVideoFrames[vs->mVideoFramesWrite].pts = pts;
-
-        vs->mVideoFrames[vs->mVideoFramesWrite].seeking = seek_applied;
         vs->mVideoFrames[vs->mVideoFramesWrite].pictureType = frame->pict_type;
-        seek_applied = false; // Found I-frame after seek.
+        vs->seek_applied = false; // Found I-frame after seek.
 
         if (vs->verbose) {
           std::cout << "Wrote frame in buffer: " << pts << std::endl;
@@ -531,7 +513,8 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
       int maxDriftFrames = 3;
 
       // Perfect match
-      if (time < nextFrame->pts && (nextFrame->pts - time) < frameInterval) {
+      if (time >= (nextFrame->pts - 0.0001) &&
+          (time - nextFrame->pts) < frameInterval) {
         nextFrame->consumed = true;
         return nextFrame->data.data();
       }
@@ -544,33 +527,48 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
         }
       }
 
-      // Check to see if requested time is in buffer (in case time has moved
-      // faster and we need to skip frames)
-      while (nextFrame && nextFrame->pts < time) {
-        if (video_state.mVideoFramesRead == video_state.mVideoFramesWrite) {
-          nextFrame = nullptr;
-          break;
+      if (time > (nextFrame->pts - 0.0001) &&
+          time <=
+              (nextFrame->pts + ((VIDEO_BUFFER_SIZE - 1) * frameInterval))) {
+        // Check to see if requested time is in buffer (in case time has moved
+        // faster and we need to skip frames)
+        while (nextFrame && nextFrame->pts - 0.0001 < time) {
+          if (video_state.mVideoFramesRead == video_state.mVideoFramesWrite) {
+            nextFrame = nullptr;
+            break;
+          }
+          nextFrame->consumed = true;
+          nextFrame = &video_state.mVideoFrames[video_state.mVideoFramesRead];
+          auto val = video_state.mVideoFramesRead;
+          if (val + 1 == video_state.mVideoFrames.size()) {
+            video_state.mVideoFramesRead = 0;
+          } else {
+            video_state.mVideoFramesRead = val + 1;
+          }
         }
-        nextFrame->consumed = true;
-        releaseVideoFrame();
-        nextFrame = &video_state.mVideoFrames[video_state.mVideoFramesRead];
       }
 
-      if (nextFrame && (nextFrame->pts - time) < frameInterval) {
+      if (nextFrame && nextFrame->pts >= time &&
+          (nextFrame->pts - time) < frameInterval) {
         // Frame available in buffer
         nextFrame->consumed = true;
         return nextFrame->data.data();
       }
 
-      // If we get here, we need to seek
-      auto pos = time + (frameInterval * frameLookAhead);
-      seek(pos);
-
+      {
+        // If we get here, we need to seek
+        auto pos = time + (frameInterval * frameLookAhead);
+        seek(pos);
+      }
       video_state.videoFrameSignal.notify_one();
     }
   } else {
+    double frameInterval = 1.0 / fps();
     // No frames available in buffer, seek and fill buffer
-    if (time >= 0) {
+    if (time >= 0 && (time<(video_state.video_clock - 0.0001) |
+                           fabs(time - video_state.video_clock)>
+                          frameInterval *
+                      5)) {
       seek(time);
     }
     video_state.videoFrameSignal.notify_one();
@@ -649,14 +647,20 @@ void VideoTexture::releaseVideoFrame() {
 //}
 
 void VideoTexture::seek(double time) {
-  if (!video_state.seek_requested) {
+  if (!video_state.seek_requested && !video_state.seek_applied) {
     video_state.seek_pos = time;
     // TODO: check which flag to use
     //    video_state.seek_flags = AVSEEK_FLAG_BACKWARD;
     // video_state.seek_flags = AVSEEK_FLAG_ANY;
     video_state.seek_requested = 1;
     video_state.videoFrameSignal.notify_one();
+  } else {
+    std::cout << "Seek in progress. Seek ignored: " << time << std::endl;
   }
+}
+
+void VideoTexture::setSeekOffset(double time) {
+  video_state.seek_offset = time;
 }
 
 unsigned int VideoTexture::audioSampleRate() {

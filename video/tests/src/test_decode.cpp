@@ -41,11 +41,14 @@ TEST(Video, SeekForward) {
   VideoTexture videoDecoder{false};
   videoDecoder.load(
 
-      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
-      "360-4k-30fps-noaudio.m4v");
-  //  videoDecoder.load(
-  //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4");
+      //      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
+      //      "360-4k-30fps-noaudio.m4v"
+      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+      "360-Reencoded.m4v"
+      //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4"
 
+  );
+  videoDecoder.setVerbose(true);
   videoDecoder.start();
 
   EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);
@@ -64,9 +67,10 @@ TEST(Video, SeekForward) {
     while (!frame && count < 50000) {
       // Give time for buffer to fill
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      frame = videoDecoder.getVideoFrame();
+      frame = videoDecoder.getVideoFrame(tgtFrame * frameInterval);
       count++;
     }
+    std::cout << "Seek frame: " << tgtFrame << std::endl;
 
     EXPECT_TRUE(frame) << "Fail on frame: " << tgtFrame;
     EXPECT_FLOAT_EQ(videoDecoder.getCurrentFrameTime(),
@@ -78,10 +82,15 @@ TEST(Video, SeekForward) {
 
 TEST(Video, SeekBack) {
   VideoTexture videoDecoder{false};
-  videoDecoder.load("C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
-                    "360-4k-30fps-noaudio.m4v");
-  //  videoDecoder.load(
-  //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4");
+  videoDecoder.load(
+
+      //      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
+      //      "360-4k-30fps-noaudio.m4v"
+      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+      "360-Reencoded.m4v"
+      //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4"
+
+  );
 
   videoDecoder.start();
 
@@ -104,6 +113,7 @@ TEST(Video, SeekBack) {
       frame = videoDecoder.getVideoFrame();
       count++;
     }
+    std::cout << "Seek frame: " << tgtFrame << std::endl;
 
     EXPECT_TRUE(frame) << "Fail on frame: " << tgtFrame;
     EXPECT_FLOAT_EQ(videoDecoder.getCurrentFrameTime(),
@@ -114,11 +124,16 @@ TEST(Video, SeekBack) {
 
 TEST(Video, SyncDecode) {
   VideoTexture videoDecoder{false};
-  videoDecoder.load("C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
-                    "360-4k-30fps-noaudio.m4v");
-  //  videoDecoder.load(
-  //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4");
+  videoDecoder.load(
 
+      //      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
+      //      "360-4k-30fps-noaudio.m4v"
+      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+      "360-Reencoded.m4v"
+      //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4"
+
+  );
+  videoDecoder.setVerbose(true);
   videoDecoder.start();
 
   EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);
@@ -136,6 +151,7 @@ TEST(Video, SyncDecode) {
       frame = videoDecoder.getVideoFrame();
       count++;
     }
+    std::cout << "Got frame: " << i * frameInterval << std::endl;
     EXPECT_TRUE(frame);
     EXPECT_FLOAT_EQ(videoDecoder.getCurrentFrameTime(), i * frameInterval);
     videoDecoder.releaseVideoFrame();
