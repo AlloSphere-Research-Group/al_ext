@@ -26,7 +26,7 @@ int main() {
   uint64_t max = 0;
   uint64_t min = UINT64_MAX;
 
-  videoDecoder.setDryRun(true);
+  //  videoDecoder.setDryRun(true);
   videoDecoder.start();
 
   int failedConsecutive = 0;
