@@ -76,7 +76,7 @@ bool VideoTexture::load(const char *url) {
 
   // find video & audio stream
   // TODO: choose stream in case of multiple streams
-  for (int i = 0; i < video_state.format_ctx->nb_streams; ++i) {
+  for (unsigned int i = 0; i < video_state.format_ctx->nb_streams; ++i) {
     if (video_state.format_ctx->streams[i]->codecpar->codec_type ==
             AVMEDIA_TYPE_VIDEO &&
         video_state.video_st_idx < 0) {
@@ -122,7 +122,7 @@ bool VideoTexture::load(const char *url) {
     AVHWDeviceType type = AV_HWDEVICE_TYPE_CUDA;
     int err;
     struct AVCodec *decoder;
-
+#ifdef UNDEF
     video_state.video_st_idx = av_find_best_stream(
         video_state.format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
     video_state.video_st =
@@ -203,6 +203,7 @@ bool VideoTexture::load(const char *url) {
     //      break;
     //  }
     //  }
+#endif
   }
 
   // TODO: add initialization notice to videoapp
@@ -212,7 +213,7 @@ bool VideoTexture::load(const char *url) {
 void VideoTexture::setDryRun(bool dryRun) { video_state.dry_run = dryRun; }
 
 bool VideoTexture::stream_component_open(VideoTextureState *vs,
-                                         int stream_index) {
+                                         unsigned int stream_index) {
   // check if stream index is valid
   if (stream_index < 0 || stream_index >= vs->format_ctx->nb_streams) {
     std::cerr << "Invalid stream index" << std::endl;
@@ -658,10 +659,8 @@ uint8_t *VideoTexture::getVideoFrame(double requestedTime, double *frameTime) {
     double frameInterval = 1.0 / fps();
     // No frames available in buffer, seek and fill buffer
     if (requestedTime >= 0 &&
-        (requestedTime<(video_state.video_clock - 0.0001) |
-                       fabs(requestedTime - video_state.video_clock)>
-             frameInterval *
-         5)) {
+        (requestedTime < (video_state.video_clock - 0.0001) ||
+         fabs(requestedTime - video_state.video_clock) > frameInterval * 5)) {
       seek(requestedTime);
     }
     video_state.videoFrameSignal.notify_one();

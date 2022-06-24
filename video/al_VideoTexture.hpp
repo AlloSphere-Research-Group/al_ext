@@ -69,8 +69,8 @@ struct VideoTextureState {
   double seek_pos;
 
   std::vector<VideoTextureFrame> mVideoFrames;
-  int32_t mVideoFramesRead = 0;
-  int32_t mVideoFramesWrite = 0;
+  uint32_t mVideoFramesRead = 0;
+  uint32_t mVideoFramesWrite = 0;
   std::condition_variable videoFrameSignal;
   std::mutex frameSignalLock;
 
@@ -149,8 +149,9 @@ public:
 
 private:
   // open & initialize video/audio stream components
-  AVCodecContext *findContext(VideoTextureState *vs, int stream_index);
-  bool stream_component_open(VideoTextureState *vs, int stream_index);
+  //  AVCodecContext *findContext(VideoTextureState *vs, unsigned int
+  //  stream_index);
+  bool stream_component_open(VideoTextureState *vs, unsigned int stream_index);
 
   // thread functions for decoding and video
   static void decodeThreadFunction(VideoTextureState *vs);

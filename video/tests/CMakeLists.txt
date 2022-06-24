@@ -22,4 +22,4 @@ add_test(NAME al_ext_video_test COMMAND al_ext_video_test)
 
 else()
     message("Not building tests for al_ext video")
-endif(gtest)
+endif(TARGET gtest)
