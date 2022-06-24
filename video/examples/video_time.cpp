@@ -35,8 +35,9 @@ public:
   }
 
   virtual void onAnimate(al_sec dt) override {
-    std::cout << "requesting frame at " << time << " delta: " << frameDelta
-              << "  dt: " << dt << std::endl;
+    //    std::cout << "requesting frame at " << time << " delta: " <<
+    //    frameDelta
+    //              << "  dt: " << dt << std::endl;
     if (freeWheel) {
       videoDecoder.updateTexture(-1);
     } else {
@@ -116,11 +117,23 @@ private:
 int main() {
   VideoApp app;
   // Set video file here
-  auto videoFile = "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
-                   "360-4k-30fps-noaudio.m4v";
+  //  auto videoFile = "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K
+  //  "
+  //                   "360-4k-30fps-noaudio.m4v";
   //  auto videoFile =
   //      "C:/Users/Andres/Downloads/LW_KT_Edit_0103_good_75mbps_8k_360.mp4";
   //  auto videoFile = "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360.mp4";
+
+  //  auto videoFile = "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K
+  //  "
+  //                   "360-4k-30fps-noaudio.m4v";
+
+  //  auto videoFile =
+  //      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K
+  //      360-Reencoded.m4v";
+
+  auto videoFile = "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+                   "360-Reencoded-keyint60.m4v";
   if (!app.loadVideoFile(videoFile)) {
     return -1;
   }

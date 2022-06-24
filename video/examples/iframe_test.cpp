@@ -12,17 +12,21 @@ int main() {
       //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4"
       //      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
       //                    "360-4k-30fps-noaudio.m4v"
+      //      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+      //      "360-Reencoded.m4v"
       "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
-      "360-Reencoded.m4v"
+      "360-Reencoded-keyint60.m4v"
 
   );
 
   videoDecoder.start();
 
   while (true) {
-    auto c = getchar();
     uint8_t *frame;
     frame = videoDecoder.getVideoFrame(-1);
+
+    videoDecoder.setSeekOffset(0);
+    videoDecoder.setVerbose(false);
 
     if (frame) {
       if (videoDecoder.getCurrentFrameType() == AV_PICTURE_TYPE_I) {

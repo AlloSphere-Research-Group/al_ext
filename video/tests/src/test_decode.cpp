@@ -4,38 +4,44 @@
 
 #include "gtest/gtest.h"
 
-TEST(Video, BasicDecode) {
-  VideoTexture videoDecoder{false};
-  videoDecoder.load(
+// TEST(Video, BasicDecode) {
+//  VideoTexture videoDecoder{false};
+//  videoDecoder.load(
 
-      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
-      "360-4k-30fps-noaudio.m4v");
-  //  videoDecoder.load(
-  //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4");
+//      //      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
+//      //      "360-4k-30fps-noaudio.m4v"
+//      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+//      "360-Reencoded.m4v"
+//      //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4"
 
-  videoDecoder.start();
+//  );
+//  //  videoDecoder.load(
 
-  EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);
+//  videoDecoder.setVerbose(true);
+//  videoDecoder.setSeekOffset(0);
+//  videoDecoder.start();
 
-  uint8_t *frame;
+//  EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);
 
-  auto frameInterval = 1.0 / videoDecoder.fps();
+//  uint8_t *frame;
 
-  for (int i = 0; i < 100; i++) {
-    frame = videoDecoder.getVideoFrame();
-    int count = 0;
-    while (!frame && count < 50) {
-      // Gice time for buffer to fill
-      frame = videoDecoder.getVideoFrame();
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
-      count++;
-    }
-    EXPECT_TRUE(frame);
-    EXPECT_FLOAT_EQ(videoDecoder.getCurrentFrameTime(), i * frameInterval)
-        << "**  for " << i;
-    videoDecoder.releaseVideoFrame();
-  }
-}
+//  auto frameInterval = 1.0 / videoDecoder.fps();
+
+//  for (int i = 0; i < 100; i++) {
+//    frame = videoDecoder.getVideoFrame();
+//    int count = 0;
+//    while (!frame && count < 50) {
+//      // Gice time for buffer to fill
+//      frame = videoDecoder.getVideoFrame();
+//      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+//      count++;
+//    }
+//    EXPECT_TRUE(frame);
+//    EXPECT_FLOAT_EQ(videoDecoder.getCurrentFrameTime(), i * frameInterval)
+//        << "**  for " << i;
+//    videoDecoder.releaseVideoFrame();
+//  }
+//}
 
 TEST(Video, SeekForward) {
   VideoTexture videoDecoder{false};
@@ -63,19 +69,19 @@ TEST(Video, SeekForward) {
   //  std::vector<int> targetFrames = {5, 10, 30, 40, 51, 72, 150};
 
   for (const auto &tgtFrame : targetFrames) {
-    frame = videoDecoder.getVideoFrame(tgtFrame * frameInterval);
+    double frameTime = 0;
+    frame = videoDecoder.getVideoFrame(tgtFrame * frameInterval, &frameTime);
     int count = 0;
     while (!frame && count < 50000) {
       // Give time for buffer to fill
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      frame = videoDecoder.getVideoFrame(tgtFrame * frameInterval);
+      frame = videoDecoder.getVideoFrame(tgtFrame * frameInterval, &frameTime);
       count++;
     }
     std::cout << "Seek frame: " << tgtFrame << std::endl;
 
     EXPECT_TRUE(frame) << "Fail on frame: " << tgtFrame;
-    EXPECT_FLOAT_EQ(videoDecoder.getCurrentFrameTime(),
-                    tgtFrame * frameInterval)
+    EXPECT_FLOAT_EQ(frameTime, tgtFrame * frameInterval)
         << "Fail on frame: " << tgtFrame;
     videoDecoder.releaseVideoFrame();
   }
@@ -157,6 +163,50 @@ TEST(Video, SyncDecode) {
     std::cout << "Got frame: " << i * frameInterval << std::endl;
     EXPECT_TRUE(frame);
     EXPECT_FLOAT_EQ(videoDecoder.getCurrentFrameTime(), i * frameInterval);
+    videoDecoder.releaseVideoFrame();
+  }
+}
+
+TEST(Video, SeekAndPlay) {
+  VideoTexture videoDecoder{false};
+  videoDecoder.load(
+
+      //      "C:/Users/Andres/Downloads/Lw Kt Edit 0103 Good 75Mbps 8K "
+      //      "360-4k-30fps-noaudio.m4v"
+      "C:/Users/Andres/Videos/Lw Kt Edit 0103 Good 75Mbps 8K "
+      "360-Reencoded.m4v"
+      //      "C:/Users/Andres/Downloads/LW_KT_Edit_1205_360-convert.mp4"
+
+  );
+  videoDecoder.setVerbose(true);
+  videoDecoder.setSeekOffset(0);
+  videoDecoder.start();
+
+  EXPECT_EQ(videoDecoder.readFramesInBuffer(), 7);
+
+  uint8_t *frame;
+
+  auto frameInterval = 1.0 / videoDecoder.fps();
+
+  std::vector<int> targetFrames = {5,   10,  30,  40,  51,  72,
+                                   100, 102, 104, 106, 108, 500};
+  //  std::vector<int> targetFrames = {5, 10, 30, 40, 51, 72, 150};
+
+  for (const auto &tgtFrame : targetFrames) {
+    double frameTime = 0;
+    frame = videoDecoder.getVideoFrame(tgtFrame * frameInterval, &frameTime);
+    int count = 0;
+    while (!frame && count < 50000) {
+      // Give time for buffer to fill
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      frame = videoDecoder.getVideoFrame(tgtFrame * frameInterval, &frameTime);
+      count++;
+    }
+    std::cout << "Seek frame: " << tgtFrame << std::endl;
+
+    EXPECT_TRUE(frame) << "Fail on frame: " << tgtFrame;
+    EXPECT_FLOAT_EQ(frameTime, tgtFrame * frameInterval)
+        << "Fail on frame: " << tgtFrame;
     videoDecoder.releaseVideoFrame();
   }
 }

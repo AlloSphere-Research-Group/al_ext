@@ -1,4 +1,8 @@
 #include "al_ext/video/al_VideoTexture.hpp"
+
+#include <libavutil/hwcontext.h>
+#include <libavutil/opt.h>
+
 using namespace al;
 
 void VideoTexture::init() {
@@ -32,6 +36,7 @@ void VideoTexture::init() {
   video_state.mVideoFrames.resize(VIDEO_BUFFER_SIZE);
   video_state.mVideoFramesRead = 0;
   video_state.mVideoFramesWrite = 0;
+  video_state.hw_device_ctx = NULL;
 
   enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
   fprintf(stderr, "Available device types:");
@@ -88,32 +93,41 @@ bool VideoTexture::load(const char *url) {
         break;
     }
   }
+  bool useHWDecode = false;
 
-  if (video_state.video_st_idx == -1) {
-    std::cerr << "Could not find video stream" << std::endl;
-    return false;
-  } else if (!stream_component_open(&video_state, video_state.video_st_idx)) {
-    std::cerr << "Could not open video codec" << std::endl;
-    return false;
-  }
-
-  if (video_state.audio_st_idx == -1) {
-    // no audio stream
-    // TODO: consider audio only files
-    video_state.audio_enabled = false;
-  } else if (video_state.audio_enabled) {
-    if (!stream_component_open(&video_state, video_state.audio_st_idx)) {
-      std::cerr << "Could not open audio codec" << std::endl;
+  if (!useHWDecode) {
+    if (video_state.video_st_idx == -1) {
+      std::cerr << "Could not find video stream" << std::endl;
+      return false;
+    } else if (!stream_component_open(&video_state, video_state.video_st_idx)) {
+      std::cerr << "Could not open video codec" << std::endl;
       return false;
     }
-  }
-  video_state.seek_offset = 5 * fps();
 
-  if (0) {
-    // HW decoding
-    enum AVHWDeviceType type = AV_HWDEVICE_TYPE_CUDA;
+    if (video_state.audio_st_idx == -1) {
+      // no audio stream
+      // TODO: consider audio only files
+
+      video_state.audio_enabled = false;
+    } else if (video_state.audio_enabled) {
+      if (!stream_component_open(&video_state, video_state.audio_st_idx)) {
+        std::cerr << "Could not open audio codec" << std::endl;
+        return false;
+      }
+    }
+    video_state.seek_offset = 5 * fps();
+  }
+
+  if (useHWDecode) {
+    AVHWDeviceType type = AV_HWDEVICE_TYPE_CUDA;
+    int err;
+    struct AVCodec *decoder;
+
+    video_state.video_st_idx = av_find_best_stream(
+        video_state.format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
+    video_state.video_st =
+        video_state.format_ctx->streams[video_state.video_st_idx];
     for (int i = 0;; i++) {
-      auto decoder = video_state.video_ctx->codec;
       const AVCodecHWConfig *config = avcodec_get_hw_config(decoder, i);
       if (!config) {
         fprintf(stderr, "Decoder %s does not support device type %s.\n",
@@ -125,9 +139,70 @@ bool VideoTexture::load(const char *url) {
         break;
       }
     }
-    if (hw_decoder_init(video_state.video_ctx, type) < 0)
+
+    AVCodecContext *decoder_ctx = NULL;
+    if (!(decoder_ctx = avcodec_alloc_context3(decoder)))
+      return AVERROR(ENOMEM);
+    if (avcodec_parameters_to_context(decoder_ctx,
+                                      video_state.video_st->codecpar) < 0)
+      return -1;
+
+    decoder_ctx->get_format = get_hw_format;
+
+    if ((err = av_hwdevice_ctx_create(&video_state.hw_device_ctx, type, NULL,
+                                      NULL, 0)) < 0) {
+      fprintf(stderr, "Failed to create specified HW device.\n");
+      return err;
+    }
+    decoder_ctx->hw_device_ctx = av_buffer_ref(video_state.hw_device_ctx);
+
+    video_state.video_ctx = decoder_ctx;
+    if (avcodec_open2(decoder_ctx, decoder, NULL) < 0) {
+      std::cerr << "Could not open codec" << std::endl;
       return false;
+    }
     std::cout << "initialized HW decoding" << std::endl;
+    auto *vs = &video_state;
+    //  switch (decoder_ctx->codec_type) {
+    //  case AVMEDIA_TYPE_AUDIO: {
+    //       video_state.audio_st =
+    //       video_state.format_ctx->streams[stream_index];
+    //       video_state.audio_ctx = decoder_ctx;
+
+    //      // set parameters
+    //      vs->audio_sample_size =
+    //      av_get_bytes_per_sample(vs->audio_ctx->sample_fmt); if
+    //      (vs->audio_sample_size < 0) {
+    //          std::cerr << "Failed to calculate data size" << std::endl;
+    //          return false;
+    //      }
+
+    //      vs->audio_channel_size = vs->audio_sample_size *
+    //      vs->audio_ctx->frame_size;
+
+    //      vs->audio_frame_size = vs->audio_sample_size *
+    //      vs->audio_ctx->frame_size *
+    //                             vs->audio_ctx->channels;
+    //  } break;
+    //  case AVMEDIA_TYPE_VIDEO: {
+    vs->video_st = vs->format_ctx->streams[0];
+    vs->video_ctx = decoder_ctx;
+
+    // initialize SWS context for software scaling
+    vs->sws_ctx = sws_getContext(vs->video_ctx->width, vs->video_ctx->height,
+                                 vs->video_ctx->pix_fmt, vs->video_ctx->width,
+                                 vs->video_ctx->height, AV_PIX_FMT_RGBA,
+                                 SWS_FAST_BILINEAR, NULL, NULL, NULL);
+    int numBytes = av_image_get_buffer_size(
+        AV_PIX_FMT_RGBA, vs->video_ctx->width, vs->video_ctx->height, 32);
+    for (auto &frame : vs->mVideoFrames) {
+      frame.data.resize(numBytes);
+    }
+    //  } break;
+    //  default: {
+    //      break;
+    //  }
+    //  }
   }
 
   // TODO: add initialization notice to videoapp
@@ -162,7 +237,12 @@ bool VideoTexture::stream_component_open(VideoTextureState *vs,
     return false;
   }
 
-  codecCtx->thread_count = 6;
+  { // Threading
+    codecCtx->thread_count = 6;
+
+    //    codecCtx->thread_type = FF_THREAD_FRAME;
+    //  codecCtx->thread_type = FF_THREAD_SLICE;
+  }
   // initialize the AVCodecContext to use the given AVCodec
   if (avcodec_open2(codecCtx, codec, NULL) < 0) {
     std::cerr << "Could not open codec" << std::endl;
@@ -361,9 +441,9 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
         //      if (!readNextPacket(vs, packet)) {
         //        vs->global_quit = 1;
         //      }
-        vs->seek_requested = false;
         vs->seek_applied = true;
       }
+      vs->seek_requested = false;
       // std::cout << "seek end" << std::endl;
     }
 
@@ -434,6 +514,7 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
               if (vs->verbose) {
                 std::cout << "Reseek back" << std::endl;
               }
+              vs->last_seek = currentPts;
               vs->seek_requested = 1;
 
               goto after_wait; // Need more packets for frame
@@ -498,12 +579,12 @@ void VideoTexture::decodeThreadFunction(VideoTextureState *vs) {
   av_packet_free(&packet);
 }
 
-uint8_t *VideoTexture::getVideoFrame(double time) {
+uint8_t *VideoTexture::getVideoFrame(double requestedTime, double *frameTime) {
 
   if (video_state.mVideoFramesRead != video_state.mVideoFramesWrite) {
     // Frames are available in buffer
     auto *nextFrame = &video_state.mVideoFrames[video_state.mVideoFramesRead];
-    if (time == -1) {
+    if (requestedTime == -1) {
       // Just deliver next frame
       nextFrame->consumed = true;
       return nextFrame->data.data();
@@ -513,27 +594,34 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
       int maxDriftFrames = 3;
 
       // Perfect match
-      if (time >= (nextFrame->pts - 0.0001) &&
-          (time - nextFrame->pts + 0.0001) < frameInterval) {
+      if (requestedTime >= (nextFrame->pts - 0.0001) &&
+          (requestedTime - nextFrame->pts + 0.0001) < frameInterval) {
         nextFrame->consumed = true;
+        if (frameTime) {
+          *frameTime = nextFrame->pts;
+        }
         return nextFrame->data.data();
       }
       // If time is a little behind the buffer, just return frame in buffer, but
       // dont consume it. Time should catch up to this frame.
-      if (nextFrame->pts > time) {
-        if ((nextFrame->pts - time) < (frameInterval * maxDriftFrames)) {
+      if (nextFrame->pts > requestedTime) {
+        if ((nextFrame->pts - requestedTime) <
+            (frameInterval * maxDriftFrames)) {
           // return frame without consuming it
+          if (frameTime) {
+            *frameTime = nextFrame->pts;
+          }
           return nextFrame->data.data();
         }
       }
 
-      if (time > (nextFrame->pts - 0.0001) &&
-          time <=
+      if (requestedTime > (nextFrame->pts - 0.0001) &&
+          requestedTime <=
               (nextFrame->pts + ((VIDEO_BUFFER_SIZE - 1) * frameInterval))) {
         // Check to see if requested time is in buffer (in case time has moved
         // faster and we need to skip frames)
-        while (nextFrame && nextFrame->pts - 0.0001 < time &&
-               nextFrame->pts != time) {
+        while (nextFrame && nextFrame->pts - 0.0001 < requestedTime &&
+               nextFrame->pts != requestedTime) {
           if (video_state.mVideoFramesRead == video_state.mVideoFramesWrite) {
             nextFrame = nullptr;
             break;
@@ -549,16 +637,19 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
         }
       }
 
-      if (nextFrame && nextFrame->pts >= time &&
-          (nextFrame->pts - time) < frameInterval) {
+      if (nextFrame && nextFrame->pts >= requestedTime &&
+          (nextFrame->pts - requestedTime) < frameInterval) {
         // Frame available in buffer
         nextFrame->consumed = true;
+        if (frameTime) {
+          *frameTime = nextFrame->pts;
+        }
         return nextFrame->data.data();
       }
 
       {
         // If we get here, we need to seek
-        auto pos = time + (frameInterval * frameLookAhead);
+        auto pos = requestedTime + (frameInterval * frameLookAhead);
         seek(pos);
       }
       video_state.videoFrameSignal.notify_one();
@@ -566,11 +657,12 @@ uint8_t *VideoTexture::getVideoFrame(double time) {
   } else {
     double frameInterval = 1.0 / fps();
     // No frames available in buffer, seek and fill buffer
-    if (time >= 0 && (time<(video_state.video_clock - 0.0001) |
-                           fabs(time - video_state.video_clock)>
-                          frameInterval *
-                      5)) {
-      seek(time);
+    if (requestedTime >= 0 &&
+        (requestedTime<(video_state.video_clock - 0.0001) |
+                       fabs(requestedTime - video_state.video_clock)>
+             frameInterval *
+         5)) {
+      seek(requestedTime);
     }
     video_state.videoFrameSignal.notify_one();
   }
