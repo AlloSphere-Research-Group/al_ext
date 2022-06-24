@@ -26,16 +26,20 @@ int main() {
   uint64_t max = 0;
   uint64_t min = UINT64_MAX;
 
-  //  videoDecoder.setDryRun(true);
+  videoDecoder.setDryRun(true);
   videoDecoder.start();
+
+  int failedConsecutive = 0;
 
   while (true) {
     auto start = std::chrono::high_resolution_clock::now();
     uint8_t *frame;
     frame = videoDecoder.getVideoFrame(-1);
-    while (!frame) {
+    while (!frame && failedConsecutive < 100) {
+      failedConsecutive++;
       frame = videoDecoder.getVideoFrame(-1);
     }
+    failedConsecutive = 0;
     videoDecoder.releaseVideoFrame();
 
     auto delta = std::chrono::high_resolution_clock::now() - start;
