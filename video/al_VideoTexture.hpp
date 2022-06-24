@@ -15,6 +15,7 @@ extern "C" {
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include "al/graphics/al_Texture.hpp"
 #include "al/system/al_Time.hpp"
@@ -31,7 +32,6 @@ struct VideoTextureFrame {
   double pts;
   AVPictureType pictureType = AV_PICTURE_TYPE_NONE;
   bool consumed; // Should release frame (consumed at correct timestamp)
-  bool seeking;
 };
 
 struct VideoTextureState {
@@ -61,6 +61,9 @@ struct VideoTextureState {
 
   // ** Seek **
   bool seek_requested;
+  bool seek_applied;
+  bool seek_offset;
+  double last_seek;
   //  int seek_flags;
   double seek_start_pos;
   double seek_pos;
@@ -78,6 +81,9 @@ struct VideoTextureState {
   // ** Global Quit Flag **
   int global_quit;
   bool verbose{false};
+
+  // HW decoding
+  AVBufferRef *hw_device_ctx = NULL;
 };
 
 class VideoTexture {
@@ -103,7 +109,8 @@ public:
   Texture &texture();
 
   // get the next video/audio frame
-  uint8_t *getVideoFrame(double time = -1);
+  uint8_t *getVideoFrame(double requestedTime = -1,
+                         double *frameTime = nullptr);
   // Must be called once after getVideoFrame()
   void releaseVideoFrame();
 
@@ -114,6 +121,7 @@ public:
 
   // seek position in video file
   void seek(double time);
+  void setSeekOffset(double time);
 
   // free memories
   void cleanup();
@@ -141,6 +149,7 @@ public:
 
 private:
   // open & initialize video/audio stream components
+  AVCodecContext *findContext(VideoTextureState *vs, int stream_index);
   bool stream_component_open(VideoTextureState *vs, int stream_index);
 
   // thread functions for decoding and video
@@ -184,19 +193,6 @@ private:
   bool mVerbose{false};
 
   // HW acceleration
-  AVBufferRef *hw_device_ctx;
-  int hw_decoder_init(AVCodecContext *ctx, const enum AVHWDeviceType type) {
-    int err = 0;
-
-    if ((err = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0)) <
-        0) {
-      fprintf(stderr, "Failed to create specified HW device.\n");
-      return err;
-    }
-    ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
-
-    return err;
-  }
 
   static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
                                           const enum AVPixelFormat *pix_fmts) {
