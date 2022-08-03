@@ -75,8 +75,6 @@ public:
   bool mPlaying{false};
 
 private:
-  Texture tex;
-
   VideoTexture videoDecoder;
 };
 
@@ -96,8 +94,11 @@ int main() {
   //  auto videoFile =
   //      "C:/Users/Andres/Downloads/LW_KT_Edit_0103_good_75mbps_8k_360.mp4";
 
+  //  auto videoFile =
+  //      "C:/Users/Andres/Videos/Lw Kt Edit 0103 4K
+  //      360-Reencoded-keyint60.m4v";
   auto videoFile =
-      "C:/Users/Andres/Videos/Lw Kt Edit 0103 4K 360-Reencoded-keyint60.m4v";
+      "C:/Users/Andres/Videos/Lw Kt Edit 0103 4K 360-Reencoded-quality38.m4v";
   if (!app.loadVideoFile(videoFile)) {
     return -1;
   }

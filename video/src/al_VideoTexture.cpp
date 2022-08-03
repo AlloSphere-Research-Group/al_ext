@@ -242,7 +242,7 @@ bool VideoTexture::stream_component_open(VideoTextureState *vs,
     codecCtx->thread_count = 6;
 
     //    codecCtx->thread_type = FF_THREAD_FRAME;
-    //  codecCtx->thread_type = FF_THREAD_SLICE;
+    codecCtx->thread_type = FF_THREAD_SLICE;
   }
   // initialize the AVCodecContext to use the given AVCodec
   if (avcodec_open2(codecCtx, codec, NULL) < 0) {
