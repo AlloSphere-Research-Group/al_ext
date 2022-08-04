@@ -104,7 +104,7 @@ bool SoundFileBuffered::close() {
 }
 
 size_t SoundFileBuffered::read(float *buffer, int numFrames) {
-  if (mRingBuffer) {
+  if (mRingBuffer && opened()) {
     size_t bytesRead = mRingBuffer->read(
         (char *)buffer, numFrames * channels() * sizeof(float));
     if (bytesRead != numFrames * channels() * sizeof(float)) {
