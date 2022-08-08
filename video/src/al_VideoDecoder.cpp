@@ -419,6 +419,9 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 }
 
 uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
+  if (!video_state.video_ctx) {
+    return nullptr;
+  }
   // check if currently seeking
   if (video_state.seek_requested) {
     video_buffer.cond.notify_one();
@@ -564,25 +567,36 @@ int VideoDecoder::height() {
 }
 
 double VideoDecoder::fps() {
-  double guess = av_q2d(
-      av_guess_frame_rate(video_state.format_ctx, video_state.video_st, NULL));
-  if (guess == 0) {
-    std::cerr << "Could not guess frame rate" << std::endl;
-    guess = av_q2d(video_state.format_ctx->streams[video_state.video_st_idx]
-                       ->r_frame_rate);
+  if (video_state.format_ctx) {
+    double guess = av_q2d(av_guess_frame_rate(video_state.format_ctx,
+                                              video_state.video_st, NULL));
+    if (guess == 0) {
+      std::cerr << "Could not guess frame rate" << std::endl;
+      guess = av_q2d(video_state.format_ctx->streams[video_state.video_st_idx]
+                         ->r_frame_rate);
+    }
+    return guess;
   }
-  return guess;
+  return 30.0f;
 }
 
 void VideoDecoder::cleanup() {
-  // Close the audio codec
-  avcodec_free_context(&video_state.audio_ctx);
-  // Close the video codec
-  avcodec_free_context(&video_state.video_ctx);
-  // free the sws context
-  sws_freeContext(video_state.sws_ctx);
-  // Close the video file
-  avformat_close_input(&video_state.format_ctx);
+  if (video_state.audio_ctx) {
+    // Close the audio codec
+    avcodec_free_context(&video_state.audio_ctx);
+  }
+  if (video_state.video_ctx) {
+    // Close the video codec
+    avcodec_free_context(&video_state.video_ctx);
+  }
+  if (video_state.sws_ctx) {
+    // free the sws context
+    sws_freeContext(video_state.sws_ctx);
+  }
+  if (video_state.format_ctx) {
+    // Close the video file
+    avformat_close_input(&video_state.format_ctx);
+  }
 }
 
 void VideoDecoder::stop() {
