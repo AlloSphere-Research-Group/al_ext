@@ -14,7 +14,7 @@
 // in the shared state.
 // The result is that less than 'maxVoice' meshes will have full frame rate,
 // but the frame rate (for mesh updates) decreases as the number of simultaneous
-// voices increases.
+// voices increases. i.e. meshes will not get updates at the full frame rate.
 using namespace al;
 
 const size_t maxMeshDataSize = 512;
@@ -88,7 +88,7 @@ public:
     registerDynamicScene(scene);
 
     auto cuttleboneDomain =
-        CuttleboneStateSimulationDomain<SharedState>::enableCuttlebone(this);
+        CuttleboneDomain<SharedState>::enableCuttlebone(this);
 
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;

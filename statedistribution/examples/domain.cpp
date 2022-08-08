@@ -5,11 +5,15 @@
 
 using namespace al;
 
-// This example shows usage of the CuttleboneDomain. Although in most cases
-// you will want to use CuttleboneStateSimulationDomain to distribute state,
-// and attach it to your application using enableCuttlebone(), using the
-// Cuttlebone domain directly requires a little more work, but gives you the
-// flexibility to sync multiple states to or from different machines
+// This example shows usage of the CuttleboneDomain without the automatic
+// registration. Although you will generally want to use
+// CuttleboneDomain::useCuttlebone(), this allows more flexibility in setting up
+// senders and receivers. In this example, both application instances will be
+// sender and receiver simultaneously.
+
+// The first instance of the application will generate State1, and will set the
+// background color and the pose, while the second instance will set the color
+// of the mesh.
 
 #define PACKET_SIZE1 1400
 #define PORT1 61900
@@ -65,9 +69,10 @@ struct MyDistributedApp : public DistributedApp {
       auto sender = cuttleboneDomain2->addStateSender("", sharedState2);
       assert(sender);
       assert(receiver);
+      omniRendering->drawOmni = false;
     }
 
-    addIcosahedron(mesh);
+    addSphere(mesh, 1, 32, 32);
     mesh.primitive(Mesh::LINES);
   }
 
@@ -83,7 +88,7 @@ struct MyDistributedApp : public DistributedApp {
     }
   }
 
-  void onDraw(Graphics& g) override {
+  void onDraw(Graphics &g) override {
     g.clear(sharedState1->backgroundColor);
     g.color(sharedState2->color);
     g.draw(mesh);

@@ -4,19 +4,26 @@ using namespace al;
 
 bool OpenVRDomain::init(ComputationDomain *parent) {
 #ifdef AL_EXT_OPENVR
-  // A graphics context is needed to initialize OpenVR
+  if (!mInitialized) {
+    bool ret = this->initializeSubdomains(true);
+    // A graphics context is needed to initialize OpenVR
 
-  if (!mGraphics) {
-    mGraphics = std::make_unique<Graphics>();
+    if (!mGraphics) {
+      mGraphics = std::make_unique<Graphics>();
+    }
+
+    std::cerr << "Initializing OpenVR domain" << std::endl;
+    if (!mOpenVR.init()) {
+      std::cerr << "ERROR: OpenVR init returned error" << std::endl;
+      ret = false;
+    } else {
+      mGraphics->init();
+    }
+
+    this->initializeSubdomains(false);
+    mInitialized = true;
+    return ret;
   }
-
-  std::cerr << "Initializing OpenVR domain" << std::endl;
-  if (!mOpenVR.init()) {
-    std::cerr << "ERROR: OpenVR init returned error" << std::endl;
-    return false;
-  }
-
-  mGraphics->init();
   return true;
 #else
   std::cerr << "Not building wiht OpenVR support" << std::endl;
