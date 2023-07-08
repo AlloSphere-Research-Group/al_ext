@@ -14,12 +14,10 @@ macro(SUBDIRLIST result curdir)
   set(${result} ${dirlist})
 endmacro()
 
+# Allows al_ext directory to be added to searchpath for modules such as find_package()
 list(APPEND CMAKE_MODULE_PATH
 ${CMAKE_CURRENT_LIST_DIR}
 )
-
-# Allolib
-#add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/.." "${CMAKE_CURRENT_LIST_DIR}/build")
 
 set(EXTENSIONS_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR})
 subdirlist(SUBDIRS "${CMAKE_CURRENT_LIST_DIR}")
@@ -28,16 +26,19 @@ subdirlist(SUBDIRS "${CMAKE_CURRENT_LIST_DIR}")
 include_directories("${CMAKE_CURRENT_LIST_DIR}/..")
 
 add_custom_target(al_ext)
-message("al_ext at: ${CMAKE_CURRENT_LIST_DIR}")
+# message("al_ext at: ${CMAKE_CURRENT_LIST_DIR}")
+
 foreach(subdir ${SUBDIRS})
+  message("al_ext at: ${subdir}")
   if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/${subdir}/CMakeLists.txt")
+    message("[Extension] ${subdir}")
     add_subdirectory(${subdir})
     if (TARGET al_${subdir})
-      message(" * Extension: ${subdir}")
+      message("* Building Extension: ${subdir}")
       add_dependencies(al_ext al_${subdir})
       list(APPEND AL_EXT_LIBRARIES al_${subdir})
     else()
-      message(" - NOT BUILDING Extension: ${subdir}")
+      message(" * NOT BUILDING Extension: ${subdir}")
     endif()
   endif()
 endforeach()
