@@ -27,6 +27,12 @@ subdirlist(SUBDIRS "${CMAKE_CURRENT_LIST_DIR}")
 #include_directories("${CMAKE_CURRENT_LIST_DIR}/../include")
 include_directories("${CMAKE_CURRENT_LIST_DIR}/..")
 
+# remove all extensions from defualt build
+set_directory_properties(PROPERTIES
+  EXCLUDE_FROM_ALL ON  
+  EXCLUDE_FROM_DEFAULT_BUILD ON
+)
+
 add_custom_target(al_ext)
 message("al_ext at: ${CMAKE_CURRENT_LIST_DIR}")
 foreach(subdir ${SUBDIRS})

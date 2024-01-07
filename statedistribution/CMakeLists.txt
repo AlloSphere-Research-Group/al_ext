@@ -14,9 +14,9 @@ set(THIS_EXTENSION_SRC
 )
 
 set(THIS_EXTENSION_HEADERS
-${CMAKE_CURRENT_LIST_DIR}/al_CuttleboneStateSimulationDomain.hpp
-${CMAKE_CURRENT_LIST_DIR}/al_CuttleboneDomain.hpp
-${CMAKE_CURRENT_LIST_DIR}/al_Serialize.hpp
+${CMAKE_CURRENT_LIST_DIR}/include/al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp
+${CMAKE_CURRENT_LIST_DIR}/include/al_ext/statedistribution/al_CuttleboneDomain.hpp
+${CMAKE_CURRENT_LIST_DIR}/include/al_ext/statedistribution/al_Serialize.hpp
 )
 
 set(THIS_EXTENSION_LIBRARY_NAME al_statedistribution)
@@ -38,7 +38,8 @@ CXX_STANDARD_REQUIRED ON
 
 ##  set(THIS_EXTENSION_LIBRARIES  ${FFTW_LIBRARY} ${GAMMA_LIBRARY})
 
-target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} al ${THIS_EXTENSION_LIBRARIES})
+target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} alapp ${THIS_EXTENSION_LIBRARIES})
+target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC include)
 #  target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PRIVATE ${ZITACONVOLVER_DIRECTORY}  ${CMAKE_CURRENT_LIST_DIR}/fftw3)
 
 #  # Connections to outside

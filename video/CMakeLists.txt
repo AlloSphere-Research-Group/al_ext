@@ -34,7 +34,7 @@ else()
     )
 
     set(THIS_EXTENSION_HEADERS
-      "${CMAKE_CURRENT_LIST_DIR}/al_VideoDecoder.hpp"
+      "${CMAKE_CURRENT_LIST_DIR}/include/al_ext/video/al_VideoDecoder.hpp"
     )
 
     set(THIS_EXTENSION_LIBRARY_NAME al_video)
@@ -42,16 +42,16 @@ else()
     add_library(${THIS_EXTENSION_LIBRARY_NAME} ${AL_LIBRARY_TYPE} ${THIS_EXTENSION_SRC} ${THIS_EXTENSION_HEADERS})
 
 
-    target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC al)
+    target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC alsystem)
     set_target_properties(${THIS_EXTENSION_LIBRARY_NAME} PROPERTIES
       CXX_STANDARD 14
     )
-    foreach(CV_LIB "${OpenCV_LIBS}")
-        target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC   "${AVCODEC_LIBRARY}" "${AVFORMAT_LIBRARY}" "${AVUTIL_LIBRARY}" "${ADEVICE_LIBRARY}" "${SWSCALE_LIBRARY}")
-    endforeach()
+    # foreach(CV_LIB "${OpenCV_LIBS}")
+    target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC   "${AVCODEC_LIBRARY}" "${AVFORMAT_LIBRARY}" "${AVUTIL_LIBRARY}" "${AVDEVICE_LIBRARY}" "${SWSCALE_LIBRARY}")
+    # endforeach()
     target_compile_definitions(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC AL_EXT_LIBAV)
 
-    target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC "${AVCODEC_INCLUDE_DIR}" "${AVFORMAT_INCLUDE_DIR}" "${AVUTIL_INCLUDE_DIR}" "${AVDEVICE_INCLUDE_DIR}" "${SWSCALE_INCLUDE_DIR}")
+    target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC include "${AVCODEC_INCLUDE_DIR}" "${AVFORMAT_INCLUDE_DIR}" "${AVUTIL_INCLUDE_DIR}" "${AVDEVICE_INCLUDE_DIR}" "${SWSCALE_INCLUDE_DIR}")
 
 
     if(BUILD_EXAMPLES)
