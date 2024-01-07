@@ -5,34 +5,23 @@ ${CMAKE_CURRENT_LIST_DIR}
 
 include("../BuildExamples.cmake")
 
-set(OPENCV_SDK "${CMAKE_CURRENT_LIST_DIR}/opencv" CACHE PATH "")
-
-if (EXISTS "${OPENCV_SDK}")
-    set(OpenCV_DIR "${OPENCV_SDK}/build")
-else()
+if (EXISTS $ENV{OpenCV_DIR})
+  set(OpenCV_DIR $ENV{OpenCV_DIR}/lib)
 endif()
-
 find_package (OpenCV)
-
 
 if (NOT OPENCV_CORE_FOUND)
     message("OpenCV not found. Not building al_opencv extension.")
 else()
-
-    message("Using OpenCV ${OpenCV_LIBS} SDK from: ${OPENCV_SDK}")
-    message("${OPENCV_INCLUDE_DIRS}")
-    set(THIS_EXTENSION_SRC
-      "${CMAKE_CURRENT_LIST_DIR}/src/al_OpenCV.cpp"
-    )
-
-    set(THIS_EXTENSION_HEADERS
-      "${CMAKE_CURRENT_LIST_DIR}/al_OpenCV.hpp"
-    )
-
+    message("Using OpenCV from: ${OpenCV_DIR}")
+    message("${OpenCV_LIBS}")
+    message("${OpenCV_INCLUDE_DIRS}")
+    
+    set(THIS_EXTENSION_SRC "${CMAKE_CURRENT_LIST_DIR}/src/al_OpenCV.cpp")
+    set(THIS_EXTENSION_HEADERS "${CMAKE_CURRENT_LIST_DIR}/al_OpenCV.hpp")
     set(THIS_EXTENSION_LIBRARY_NAME al_opencv)
 
     add_library(${THIS_EXTENSION_LIBRARY_NAME} ${AL_LIBRARY_TYPE} ${THIS_EXTENSION_SRC} ${THIS_EXTENSION_HEADERS})
-
 
     target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/opencv/sources/include/" )
 

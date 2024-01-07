@@ -1,6 +1,6 @@
 set(USE_CUTTLEBONE ON CACHE BOOL "")
 if (USE_CUTTLEBONE)
-    set(CB_BUILD_EXAMPLES OFF)
+    set(CB_BUILD_EXAMPLES OFF CACHE BOOL "")
     add_subdirectory(cuttlebone)
 endif()
 
