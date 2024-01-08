@@ -430,7 +430,7 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
   }
 
   if (delay_next_frame.load()) {
-    std::cout << "delaying" << std::endl;
+    // std::cout << "delaying" << std::endl;
     delay_next_frame = false;
     return nullptr;
   }
@@ -442,7 +442,7 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
   }
 
   if (skip_next_frame.load()) {
-    std::cout << "skipping" << std::endl;
+    // std::cout << "skipping" << std::endl;
     skip_next_frame = false;
     // do {
     video_state.last_frame_pts = video_output->pts;
