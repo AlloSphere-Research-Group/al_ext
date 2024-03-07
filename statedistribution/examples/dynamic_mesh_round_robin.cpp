@@ -5,7 +5,7 @@
 #include "al/math/al_Random.hpp"
 #include "al/scene/al_DistributedScene.hpp"
 
-#include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
+#include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
 #include "al_ext/statedistribution/al_Serialize.hpp"
 
 // This example extends the dynamic_mesh example

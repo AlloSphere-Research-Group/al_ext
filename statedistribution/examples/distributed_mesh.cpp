@@ -4,7 +4,7 @@
 #include "al/graphics/al_Shapes.hpp"
 #include "al/math/al_Random.hpp"
 
-#include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
+#include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
 #include "al_ext/statedistribution/al_Serialize.hpp"
 
 using namespace al;
