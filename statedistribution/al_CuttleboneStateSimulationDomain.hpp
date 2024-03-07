@@ -31,6 +31,7 @@ class CuttleboneStateSimulationDomain
     : public StateDistributionDomain<TSharedState> {
 public:
   virtual bool init(ComputationDomain *parent = nullptr) {
+    std::cout << "CuttleboneStateSimulationDomain: init called." << std::endl;
     return StateDistributionDomain<TSharedState>::init(parent);
   }
 

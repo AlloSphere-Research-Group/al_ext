@@ -81,6 +81,7 @@ class CuttleboneReceiveDomain : public StateReceiveDomain<TSharedState> {
 
   bool cleanup(ComputationDomain * /*parent*/ = nullptr) override {
     this->cleanupSubdomains(true);
+    std::cout << "CuttleboneReceiveDomain: cleanup called." << std::endl;
 #ifdef AL_USE_CUTTLEBONE
     mTaker->stop();
     mTaker = nullptr;
@@ -101,6 +102,9 @@ class CuttleboneReceiveDomain : public StateReceiveDomain<TSharedState> {
 template <class TSharedState, unsigned PACKET_SIZE, unsigned PORT>
 bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
     ComputationDomain *parent) {
+
+  std::cout << "CuttleboneReceiveDomain: init called." << std::endl;
+
   this->initializeSubdomains(true);
   assert(parent != nullptr);
 
@@ -126,6 +130,7 @@ template <class TSharedState = DefaultState, unsigned PACKET_SIZE = 1400,
 class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
  public:
   bool init(ComputationDomain * /*parent*/ = nullptr) override {
+    std::cout << "CuttleboneSendDomain: init called." << std::endl;
     this->initializeSubdomains(true);
 
 #ifdef AL_USE_CUTTLEBONE
@@ -161,6 +166,7 @@ class CuttleboneSendDomain : public StateSendDomain<TSharedState> {
   }
 
   bool cleanup(ComputationDomain * /*parent*/ = nullptr) override {
+    std::cout << "CuttleboneSendDomain: cleanup called." << std::endl;
     this->cleanupSubdomains(true);
 #ifdef AL_USE_CUTTLEBONE
     if (mMaker) {
