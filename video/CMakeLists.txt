@@ -5,8 +5,8 @@ ${CMAKE_CURRENT_LIST_DIR}
 
 include("../BuildExamples.cmake")
 
-set(FFMPEG_ROOT "/alloshare/code/kenny/ffmpeg_install/" CACHE STRING "Path to FFMPEG lib and include directories")
-message("Using FFMPEG at ${FFMPEG_ROOT}")
+# set(FFMPEG_ROOT "/alloshare/code/kenny/ffmpeg_install/" CACHE STRING "Path to FFMPEG lib and include directories")
+# message("Using FFMPEG at ${FFMPEG_ROOT}")
 
 # FFMPEG
 find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h PATHS ${FFMPEG_ROOT} PATH_SUFFIXES "include")
@@ -25,10 +25,10 @@ find_path(SWSCALE_INCLUDE_DIR libswscale/swscale.h PATHS ${FFMPEG_ROOT} PATH_SUF
 find_library(SWSCALE_LIBRARY swscale PATHS ${FFMPEG_ROOT} PATH_SUFFIXES "lib" "bin")
 
 if (NOT AVCODEC_LIBRARY)
-    message("Libav not found. Not building al_video extension.")
+    message(WARNING "[al_video] Libav not found. Not building al_video extension.")
 else()
 
-    message("Using Libav ${AVCODEC_LIBRARY} SDK from: ${FFMPEG_ROOT}")
+    message("[al_video] Using Libav ${AVCODEC_LIBRARY}")
     set(THIS_EXTENSION_SRC
       "${CMAKE_CURRENT_LIST_DIR}/src/al_VideoDecoder.cpp"
     )
@@ -55,7 +55,7 @@ else()
 
 
     if(BUILD_EXAMPLES)
-        message("Building Libav examples")
+        message("[al_video] Building Libav examples")
         BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_video)
     endif(BUILD_EXAMPLES)
 
