@@ -5,6 +5,10 @@
 include("../BuildExamples.cmake")
 
 if (NOT SNDFILE_LIBRARY)
+  find_package(SndFile)
+endif()
+
+if (NOT SNDFILE_LIBRARY)
   message("libsndfile not found. Not building soundfile extension.")
 else()
   message(STATUS "Using libsndfile: ${SNDFILE_LIBRARY}")

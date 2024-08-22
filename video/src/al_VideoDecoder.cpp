@@ -142,7 +142,7 @@ bool VideoDecoder::stream_component_open(VideoState *vs, int stream_index) {
     vs->audio_channel_size = vs->audio_sample_size * vs->audio_ctx->frame_size;
 
     vs->audio_frame_size = vs->audio_sample_size * vs->audio_ctx->frame_size *
-                           vs->audio_ctx->channels;
+                           vs->audio_ctx->ch_layout.nb_channels;
   } break;
   case AVMEDIA_TYPE_VIDEO: {
     vs->video_st = vs->format_ctx->streams[stream_index];
@@ -151,7 +151,7 @@ bool VideoDecoder::stream_component_open(VideoState *vs, int stream_index) {
     // initialize SWS context for software scaling
     vs->sws_ctx = sws_getContext(vs->video_ctx->width, vs->video_ctx->height,
                                  vs->video_ctx->pix_fmt, vs->video_ctx->width,
-                                 vs->video_ctx->height, AV_PIX_FMT_RGBA,
+                                 vs->video_ctx->height, AV_PIX_FMT_GRAY8,
                                  SWS_FAST_BILINEAR, NULL, NULL, NULL);
   } break;
   default: {
@@ -204,13 +204,13 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
     return;
   }
 
-  int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, vs->video_ctx->width,
-                                          vs->video_ctx->height, 32);
+  int numBytes = av_image_get_buffer_size(
+      AV_PIX_FMT_GRAY8, vs->video_ctx->width, vs->video_ctx->height, 32);
   uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 
   // Setup pointers and linesize for dst frame and image data buffer
   av_image_fill_arrays(frameRGB->data, frameRGB->linesize, buffer,
-                       AV_PIX_FMT_RGBA, vs->video_ctx->width,
+                       AV_PIX_FMT_GRAY8, vs->video_ctx->width,
                        vs->video_ctx->height, 32);
 
   uint8_t *audio_out =
@@ -390,7 +390,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         //   break;
         // }
 
-        for (int i = 0; i < vs->audio_ctx->channels; ++i) {
+        for (int i = 0; i < vs->audio_ctx->ch_layout.nb_channels; ++i) {
           memcpy(audio_out + i * vs->audio_channel_size, frame->data[i],
                  vs->audio_channel_size);
         }
@@ -544,7 +544,7 @@ unsigned int VideoDecoder::audioSampleRate() {
 
 unsigned int VideoDecoder::audioNumChannels() {
   if (video_state.audio_ctx)
-    return video_state.audio_ctx->channels;
+    return video_state.audio_ctx->ch_layout.nb_channels;
   return 0;
 }
 
