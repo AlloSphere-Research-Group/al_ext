@@ -1,7 +1,7 @@
 #ifndef AL_VIDEODECODER_HPP
 #define AL_VIDEODECODER_HPP
 
-#ifdef AL_EXT_LIBAV
+// #ifdef AL_EXT_LIBAV
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -37,6 +37,7 @@ struct VideoState {
   AVCodecContext *video_ctx;
   struct SwsContext *sws_ctx;
   MediaBuffer *video_frames;
+  int line_sizes[4];
 
   // ** Audio Stream **
   bool audio_enabled;
@@ -83,7 +84,7 @@ public:
   void start();
 
   // get the next video/audio frame
-  uint8_t *getVideoFrame(double external_clock = -1);
+  MediaFrame *getVideoFrame(double external_clock = -1);
   uint8_t *getAudioFrame(double external_clock = -1);
 
   void gotVideoFrame() { video_buffer.got(); }
@@ -117,6 +118,7 @@ public:
   int width();
   int height();
   double fps();
+  int *lineSize();
 
 private:
   // open & initialize video/audio stream components
@@ -157,8 +159,8 @@ private:
   std::thread *decode_thread{nullptr};
 };
 
-#else
-#pragma message("al_ext video extension not built. Do not include this header")
-#endif
+// #else
+// #pragma message("al_ext video extension not built. Do not include this
+// header") #endif
 
 #endif // AL_VIDEODECODER_HPP

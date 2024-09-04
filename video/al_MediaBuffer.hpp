@@ -11,14 +11,24 @@
 struct MediaFrame {
   MediaFrame() {}
   MediaFrame(uint8_t *data_ptr, size_t data_size, double data_pts)
-      : data(data_ptr, data_ptr + data_size), pts(data_pts) {}
+      : dataY(data_ptr, data_ptr + data_size), pts(data_pts) {}
+  MediaFrame(uint8_t *dataY_ptr, size_t dataY_size, uint8_t *dataU_ptr,
+             size_t dataU_size, uint8_t *dataV_ptr, size_t dataV_size,
+             double data_pts)
+      : dataY(dataY_ptr, dataY_ptr + dataY_size),
+        dataU(dataU_ptr, dataU_ptr + dataU_size),
+        dataV(dataV_ptr, dataV_ptr + dataV_size), pts(data_pts) {}
 
   void clear() {
-    data.clear();
+    dataY.clear();
+    dataU.clear();
+    dataV.clear();
     pts = 0;
   }
 
-  std::vector<uint8_t> data;
+  std::vector<uint8_t> dataY;
+  std::vector<uint8_t> dataU;
+  std::vector<uint8_t> dataV;
   double pts;
 };
 
@@ -37,6 +47,24 @@ public:
 
     // TODO: check possible unnecessary memory copy
     frames[writePos] = MediaFrame(buffer, numBytes, pts);
+    valid[writePos] = true;
+    writePos = ++writePos % frames.size();
+
+    return true;
+  }
+
+  bool put(uint8_t *bufferY, int &numBytesY, uint8_t *bufferU, int &numBytesU,
+           uint8_t *bufferV, int &numBytesV, double &pts) {
+    if (valid[writePos]) {
+      // std::cerr << "Buffer pos already occupied: " << writePos << std::endl;
+      return false;
+    }
+
+    // std::cout << "Writing at buffer: " << writePos << std::endl;
+
+    // TODO: check possible unnecessary memory copy
+    frames[writePos] = MediaFrame(bufferY, numBytesY, bufferU, numBytesU,
+                                  bufferV, numBytesV, pts);
     valid[writePos] = true;
     writePos = ++writePos % frames.size();
 

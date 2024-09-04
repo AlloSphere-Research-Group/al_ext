@@ -10,6 +10,9 @@ void VideoDecoder::init() {
   video_state.video_ctx = nullptr;
   video_state.sws_ctx = nullptr;
   video_state.video_frames = nullptr;
+  for (int i = 0; i < 4; ++i) {
+    video_state.line_sizes[i] = 0;
+  }
 
   video_state.audio_enabled = true;
   video_state.audio_st_idx = -1;
@@ -153,6 +156,9 @@ bool VideoDecoder::stream_component_open(VideoState *vs, int stream_index) {
                                  vs->video_ctx->pix_fmt, vs->video_ctx->width,
                                  vs->video_ctx->height, AV_PIX_FMT_GRAY8,
                                  SWS_FAST_BILINEAR, NULL, NULL, NULL);
+
+    av_image_fill_linesizes(vs->line_sizes, AV_PIX_FMT_YUV420P,
+                            codecCtx->width);
   } break;
   default: {
     break;
@@ -212,6 +218,14 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   av_image_fill_arrays(frameRGB->data, frameRGB->linesize, buffer,
                        AV_PIX_FMT_GRAY8, vs->video_ctx->width,
                        vs->video_ctx->height, 32);
+
+  int numBytesY = vs->line_sizes[0] * vs->video_ctx->height;
+  int numBytesU = vs->line_sizes[1] * vs->video_ctx->height / 2;
+  int numBytesV = vs->line_sizes[2] * vs->video_ctx->height / 2;
+
+  uint8_t *bufferY = (uint8_t *)av_malloc(numBytesY * sizeof(uint8_t));
+  uint8_t *bufferU = (uint8_t *)av_malloc(numBytesU * sizeof(uint8_t));
+  uint8_t *bufferV = (uint8_t *)av_malloc(numBytesV * sizeof(uint8_t));
 
   uint8_t *audio_out =
       (uint8_t *)av_malloc(vs->audio_frame_size * sizeof(uint8_t));
@@ -324,13 +338,15 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         // }
 
         // scale image in frame and put results in frameRGB
-        sws_scale(vs->sws_ctx, (uint8_t const *const *)frame->data,
-                  frame->linesize, 0, vs->video_ctx->height, frameRGB->data,
-                  frameRGB->linesize);
+        // sws_scale(vs->sws_ctx, (uint8_t const *const *)frame->data,
+        //           frame->linesize, 0, vs->video_ctx->height, frameRGB->data,
+        //           frameRGB->linesize);
 
         std::unique_lock<std::mutex> lk(vs->video_frames->mutex);
 
-        while (!vs->video_frames->put(buffer, numBytes, pts)) {
+        // while (!vs->video_frames->put(buffer, numBytes, pts)) {
+        while (!vs->video_frames->put(bufferY, numBytesY, bufferU, numBytesU,
+                                      bufferV, numBytesV, pts)) {
           vs->video_frames->cond.wait(lk);
 
           if (vs->global_quit != 0 || vs->seek_requested) {
@@ -412,13 +428,16 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   }
   // free the memory
   av_freep(&audio_out);
+  av_freep(&bufferY);
+  av_freep(&bufferU);
+  av_freep(&bufferV);
   av_freep(&buffer);
   av_frame_free(&frameRGB);
   av_frame_free(&frame);
   av_packet_free(&packet);
 }
 
-uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
+MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
   if (!video_state.video_ctx) {
     return nullptr;
   }
@@ -488,7 +507,7 @@ uint8_t *VideoDecoder::getVideoFrame(double external_clock) {
     }
   }
 
-  return video_output->data.data();
+  return video_output;
 }
 
 uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
@@ -517,7 +536,7 @@ uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
   //   }
   // }
 
-  return audio_output->data.data();
+  return audio_output->dataY.data();
 }
 
 void VideoDecoder::stream_seek(int64_t pos, int rel) {
@@ -564,6 +583,12 @@ int VideoDecoder::height() {
   if (video_state.video_ctx)
     return video_state.video_ctx->height;
   return 0;
+}
+
+int *VideoDecoder::lineSize() {
+  if (video_state.video_ctx)
+    return video_state.line_sizes;
+  return nullptr;
 }
 
 double VideoDecoder::fps() {
