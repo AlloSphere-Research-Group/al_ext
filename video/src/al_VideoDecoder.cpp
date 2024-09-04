@@ -342,6 +342,10 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         //           frame->linesize, 0, vs->video_ctx->height, frameRGB->data,
         //           frameRGB->linesize);
 
+        memcpy(bufferY, frame->data[0], numBytesY);
+        memcpy(bufferU, frame->data[1], numBytesU);
+        memcpy(bufferV, frame->data[2], numBytesV);
+
         std::unique_lock<std::mutex> lk(vs->video_frames->mutex);
 
         // while (!vs->video_frames->put(buffer, numBytes, pts)) {
