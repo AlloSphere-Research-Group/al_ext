@@ -213,11 +213,13 @@ void VideoDecoder::start() {
     } else {
       std::cout << "policy: " << policy << std::endl;
       std::cout << "priority: " << params.sched_priority << std::endl;
-      params.sched_priority = 80;
+      params.sched_priority = sched_get_priority_max(SCHED_FIFO);
       int result = pthread_setschedparam(decode_thread->native_handle(),
                                          SCHED_FIFO, &params);
       if (result != 0) {
         std::cerr << "set sched param failed: " << result << std::endl;
+      } else {
+        std::cout << "new priority: " << params.sched_priority << std::endl;
       }
     }
 #endif
