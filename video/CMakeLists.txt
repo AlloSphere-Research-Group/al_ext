@@ -7,6 +7,7 @@ include("../BuildExamples.cmake")
 
 find_package(FFMPEG)
 
+# set(FFMPEG_ROOT "/alloshare/code/kenny/ffmpeg_install/" CACHE STRING "Path to FFMPEG lib and include directories")
 # set(FFMPEG_ROOT "C:/vcpkg/installed/x64-windows/" CACHE STRING "Path to FFMPEG lib and include directories")
 # message("Using FFMPEG at ${FFMPEG_ROOT}")
 
@@ -27,15 +28,15 @@ find_package(FFMPEG)
 # find_library(SWSCALE_LIBRARY swscale PATHS ${FFMPEG_ROOT} PATH_SUFFIXES "lib" "bin")
 
 if (NOT FFMPEG_FOUND)
-    message("FFMPEG not found. Not building al_video extension.")
+    message(WARNING "[al_video] Libav not found. Not building al_video extension.")
 else()
-    message("Found FFMPEG. Building al_video extension")
+    message("[al_video] Using Libav ${AVCODEC_LIBRARY}")
     set(THIS_EXTENSION_SRC
       "${CMAKE_CURRENT_LIST_DIR}/src/al_VideoDecoder.cpp"
     )
 
     set(THIS_EXTENSION_HEADERS
-      "${CMAKE_CURRENT_LIST_DIR}/al_VideoDecoder.hpp"
+      "${CMAKE_CURRENT_LIST_DIR}/include/al_ext/video/al_VideoDecoder.hpp"
     )
 
     set(THIS_EXTENSION_LIBRARY_NAME al_video)
@@ -43,7 +44,7 @@ else()
     add_library(${THIS_EXTENSION_LIBRARY_NAME} ${AL_LIBRARY_TYPE} ${THIS_EXTENSION_SRC} ${THIS_EXTENSION_HEADERS})
 
 
-    target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC al)
+    target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC alsystem)
     set_target_properties(${THIS_EXTENSION_LIBRARY_NAME} PROPERTIES
       CXX_STANDARD 14
     )
@@ -51,16 +52,15 @@ else()
     #     target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC   "${AVCODEC_LIBRARY}" "${AVFORMAT_LIBRARY}" "${AVUTIL_LIBRARY}" "${ADEVICE_LIBRARY}" "${SWSCALE_LIBRARY}")
     # endforeach()
 
-    target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC ${FFMPEG_INCLUDE_DIRS})
+    target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC include ${FFMPEG_INCLUDE_DIRS})
     target_link_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC ${FFMPEG_LIBRARY_DIRS})
     target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC ${FFMPEG_LIBRARIES})
     target_compile_definitions(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC AL_EXT_LIBAV)
 
     # target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC "${AVCODEC_INCLUDE_DIR}" "${AVFORMAT_INCLUDE_DIR}" "${AVUTIL_INCLUDE_DIR}" "${AVDEVICE_INCLUDE_DIR}" "${SWSCALE_INCLUDE_DIR}")
 
-
     if(BUILD_EXAMPLES)
-        message("Building Libav examples")
+        message("[al_video] Building Libav examples")
         BuildExamples("${CMAKE_CURRENT_LIST_DIR}/examples" ${THIS_EXTENSION_LIBRARY_NAME} al_video)
     endif(BUILD_EXAMPLES)
 

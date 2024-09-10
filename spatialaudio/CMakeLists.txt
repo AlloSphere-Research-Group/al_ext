@@ -17,7 +17,7 @@ find_library(FFTW_LIBRARY
   NAMES fftw3f)
 
 if (NOT FFTW_LIBRARY)
-  message("fftw3 not found. Not building spatialaudio")
+  message(WARNING "fftw3 not found. Not building spatialaudio")
 else()
   set(ZITACONVOLVER_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/zita-convolver-4.0.3/source") 
   message(STATUS "Using fftw3: ${FFTW_LIBRARY}")
@@ -55,9 +55,9 @@ else()
     CXX_STANDARD_REQUIRED ON
     )
 
-  set(THIS_EXTENSION_LIBRARIES  ${FFTW_LIBRARY} ${GAMMA_LIBRARY})
+  set(THIS_EXTENSION_LIBRARIES  ${FFTW_LIBRARY} Gamma)
 
-  target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} al ${THIS_EXTENSION_LIBRARIES})
+  target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} alapp ${THIS_EXTENSION_LIBRARIES})
   target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PRIVATE ${ZITACONVOLVER_DIRECTORY})
 
   # Connections to outside
