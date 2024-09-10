@@ -1,5 +1,13 @@
 #include "al_ext/video/al_VideoDecoder.hpp"
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+#else
+#include <pthread.h>
+#endif
+
 using namespace al;
 
 void VideoDecoder::init() {
@@ -177,6 +185,38 @@ void VideoDecoder::start() {
   // check if video streams is valid
   if (video_state.video_st != nullptr) {
     decode_thread = new std::thread(decodeThreadFunction, &video_state);
+#ifdef WIN32
+    // std::cout << "current thread priority: "
+    //           << GetThreadPriority(GetCurrentThread()) << std::endl;
+    // std::cout << "decode thread priority: "
+    //           << GetThreadPriority(decode_thread->native_handle()) <<
+    //           std::endl;
+
+    int result = SetThreadPriority(decode_thread->native_handle(),
+                                   THREAD_PRIORITY_HIGHEST);
+    if (result == 0) {
+      std::cerr << "set priority failed" << std::endl;
+    } else {
+      std::cout << "Decode thread set to NORMAL_PRIORITY_CLASS, "
+                   "THREAD_PRIORITY_HIGHEST"
+                << std::endl;
+    }
+// std::cout << "decode thread priority: "
+//           << GetThreadPriority(decode_thread->native_handle()) <<
+//           std::endl;
+#else
+    int policy;
+    sched_param params;
+    if (pthread_getschedparam(pthread_self(), &policy, &params) == 0) {
+      std::cout << "policy: " << policy << std::endl;
+      std::cout << "priority: " << params.sched_priority << std::endl;
+      params.sched_priority = 80;
+      if (pthread_setschedparam(decode_thread->native_handle(), policy,
+                                &params) != 0) {
+        std::cerr << "set priority failed" << std::endl;
+      }
+    }
+#endif
   }
 
   if (!decode_thread) {
