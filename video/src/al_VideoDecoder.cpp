@@ -207,7 +207,9 @@ void VideoDecoder::start() {
 #else
     int policy;
     sched_param params;
-    if (pthread_getschedparam(pthread_self(), &policy, &params) == 0) {
+    if (pthread_getschedparam(pthread_self(), &policy, &params) != 0) {
+      std::cerr << "get sched param failed" << std::endl;
+    } else {
       std::cout << "policy: " << policy << std::endl;
       std::cout << "priority: " << params.sched_priority << std::endl;
       params.sched_priority = 80;
