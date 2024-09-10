@@ -15,8 +15,9 @@ find_library(OPENVR_LIB openvr_api
   "${CMAKE_CURRENT_LIST_DIR}/../../../../openvr/lib/win64"
   )
 
-
-message("OpenVR root: ${OPENVR_ROOT_DIR}")
+if(DEFINED OPENVR_ROOT_DIR)
+  message("[al_openvr] OpenVR root dir: ${OPENVR_ROOT_DIR}")
+endif()
 
 set(THIS_EXTENSION_SRC
   "${CMAKE_CURRENT_LIST_DIR}/src/al_OpenVRWrapper.cpp"
@@ -32,13 +33,13 @@ set(THIS_EXTENSION_LIBRARY_NAME al_openvr)
 add_library(${THIS_EXTENSION_LIBRARY_NAME} ${AL_LIBRARY_TYPE} ${THIS_EXTENSION_SRC} ${THIS_EXTENSION_HEADERS})
 
 target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../.." )
-target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC al)
+target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC alapp)
 set_target_properties(${THIS_EXTENSION_LIBRARY_NAME} PROPERTIES
   CXX_STANDARD 14
 )
 
 if (NOT OPENVR_LIB)
-  message("OpenVR not found. Not building al_openvr extension.")
+  message(WARNING "[al_openvr] OpenVR not found. Building empty extension.")
 else()
   get_filename_component(OPENVR_ROOT ${OPENVR_LIB} DIRECTORY)
   set(OPENVR_ROOT "${OPENVR_ROOT}/../../")

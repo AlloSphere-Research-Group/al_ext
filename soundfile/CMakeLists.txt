@@ -9,7 +9,7 @@ if (NOT SNDFILE_LIBRARY)
 endif()
 
 if (NOT SNDFILE_LIBRARY)
-  message("libsndfile not found. Not building soundfile extension.")
+  message(WARNING "libsndfile not found. Not building soundfile extension.")
 else()
   message(STATUS "Using libsndfile: ${SNDFILE_LIBRARY}")
 
@@ -37,8 +37,8 @@ else()
     )
 
   set(THIS_EXTENSION_LIBRARIES ${SNDFILE_LIBRARY} ${GAMMA_LIBRARY})
-
-  target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} al ${THIS_EXTENSION_LIBRARIES})
+  target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC "../../allolib/modules/external/Gamma")
+  target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} alapp ${THIS_EXTENSION_LIBRARIES})
 
   # Connections to outside
   set(CURRENT_EXTENSION_LIBRARIES ${THIS_EXTENSION_LIBRARY_NAME} ${THIS_EXTENSION_LIBRARIES})

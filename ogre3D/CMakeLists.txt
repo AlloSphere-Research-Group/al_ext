@@ -8,7 +8,9 @@ ${OGRE_SDK}/cmake
 
 # Needed for iOS
 #set( CMAKE_TOOLCHAIN_FILE CMake/iOS.cmake )
-find_package(OGRE 2.2)
+
+# comment out for now to remove warning, TODO XXX
+# find_package(OGRE 2.2)
 
 include("../BuildExamples.cmake")
 
