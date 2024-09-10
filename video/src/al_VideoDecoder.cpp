@@ -5,7 +5,7 @@
 #include <windows.h>
 
 #else
-#include <pthread.h>
+// #include <pthread.h>
 #endif
 
 using namespace al;
@@ -205,23 +205,23 @@ void VideoDecoder::start() {
 //           << GetThreadPriority(decode_thread->native_handle()) <<
 //           std::endl;
 #else
-    int policy;
-    sched_param params;
-    if (pthread_getschedparam(decode_thread->native_handle(), &policy,
-                              &params) != 0) {
-      std::cerr << "get sched param failed" << std::endl;
-    } else {
-      std::cout << "policy: " << policy << std::endl;
-      std::cout << "priority: " << params.sched_priority << std::endl;
-      params.sched_priority = 0; // sched_get_priority_max(SCHED_FIFO);
-      int result = pthread_setschedparam(decode_thread->native_handle(),
-                                         SCHED_FIFO, &params);
-      if (result != 0) {
-        std::cerr << "set sched param failed: " << result << std::endl;
-      } else {
-        std::cout << "new priority: " << params.sched_priority << std::endl;
-      }
-    }
+    // int policy;
+    // sched_param params;
+    // if (pthread_getschedparam(decode_thread->native_handle(), &policy,
+    //                           &params) != 0) {
+    //   std::cerr << "get sched param failed" << std::endl;
+    // } else {
+    //   std::cout << "policy: " << policy << std::endl;
+    //   std::cout << "priority: " << params.sched_priority << std::endl;
+    //   params.sched_priority = 0; // sched_get_priority_max(SCHED_FIFO);
+    //   int result = pthread_setschedparam(decode_thread->native_handle(),
+    //                                      SCHED_FIFO, &params);
+    //   if (result != 0) {
+    //     std::cerr << "set sched param failed: " << result << std::endl;
+    //   } else {
+    //     std::cout << "new priority: " << params.sched_priority << std::endl;
+    //   }
+    // }
 #endif
   }
 
