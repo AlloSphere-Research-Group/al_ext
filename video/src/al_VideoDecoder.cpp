@@ -217,10 +217,9 @@ void VideoDecoder::start() {
       int result = pthread_setschedparam(decode_thread->native_handle(),
                                          SCHED_FIFO, &params);
       if (result != 0) {
-        std::cerr << "set sched param failed: " << std::strerror(errno)
-                  << std::endl;
-        std::cerr << "result = " << result << std::endl;
+        std::cerr << "set sched param failed: " << result << std::endl;
       }
+    }
 #endif
   }
 
