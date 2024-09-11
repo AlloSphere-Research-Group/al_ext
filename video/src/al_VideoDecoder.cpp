@@ -1,6 +1,7 @@
 #include "al_ext/video/al_VideoDecoder.hpp"
 
 #ifdef WIN32
+#define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -327,7 +328,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
     }
 
     if (vs->global_finished) {
-      al_sleep_nsec(100000000);
+      al_sleep_nsec(100000000); // 10 ms
       continue;
     }
 
@@ -335,6 +336,10 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
     if (av_read_frame(vs->format_ctx, packet) < 0) {
       // no read error; wait for file
       if (vs->format_ctx->pb->error == 0) {
+        vs->global_finished = true;
+        if (!vs->global_loop) {
+          vs->global_quit = 1;
+        }
         // al_sleep_nsec(100000000); // 10 ms
         continue;
       } else {
@@ -360,10 +365,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
           // need more data
           break;
         } else if (ret == AVERROR_EOF) {
-          vs->global_finished = true;
-          if (!vs->global_loop) {
-            vs->global_quit = 1;
-          }
+          std::cerr << "EOF Error" << std::endl;
+          vs->global_quit = 1;
           break;
         } else if (ret < 0) {
           std::cerr << "Error while decoding" << std::endl;

@@ -94,7 +94,9 @@ public:
   void gotAudioFrame() { audio_buffer.got(); }
 
   void pause(bool video_pause) { video_state.global_pause = video_pause; }
+  bool isPaused() { return video_state.global_pause; }
   void loop(bool video_loop) { video_state.global_loop = video_loop; }
+  bool isLooping() { return video_state.global_loop; }
   void seek(double video_seek) {
     stream_seek((int64_t)(video_seek * AV_TIME_BASE),
                 (int)(video_seek - video_state.master_clock));
