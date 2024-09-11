@@ -63,6 +63,9 @@ struct VideoState {
 
   // ** Global Quit Flag **
   int global_quit;
+  bool global_pause;
+  bool global_loop;
+  bool global_finished;
 };
 
 class VideoDecoder {
@@ -89,6 +92,15 @@ public:
 
   void gotVideoFrame() { video_buffer.got(); }
   void gotAudioFrame() { audio_buffer.got(); }
+
+  void pause(bool video_pause) { video_state.global_pause = video_pause; }
+  void loop(bool video_loop) { video_state.global_loop = video_loop; }
+  void seek(double video_seek) {
+    stream_seek((int64_t)(video_seek * AV_TIME_BASE),
+                (int)(video_seek - video_state.master_clock));
+  }
+  bool finished() { return video_state.global_finished; }
+  // TODO: return duration to create slider
 
   // seek position in video file
   void stream_seek(int64_t pos, int rel);

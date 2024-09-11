@@ -42,6 +42,9 @@ void VideoDecoder::init() {
   video_state.seek_pos = 0;
 
   video_state.global_quit = 0;
+  video_state.global_pause = false;
+  video_state.global_loop = false;
+  video_state.global_finished = false;
 }
 
 bool VideoDecoder::load(const char *url) {
@@ -323,6 +326,11 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
       // std::cout << "seek end" << std::endl;
     }
 
+    if (vs->global_finished) {
+      al_sleep_nsec(100000000);
+      continue;
+    }
+
     // read the next frame
     if (av_read_frame(vs->format_ctx, packet) < 0) {
       // no read error; wait for file
@@ -352,7 +360,10 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
           // need more data
           break;
         } else if (ret == AVERROR_EOF) {
-          vs->global_quit = 1;
+          vs->global_finished = true;
+          if (!vs->global_loop) {
+            vs->global_quit = 1;
+          }
           break;
         } else if (ret < 0) {
           std::cerr << "Error while decoding" << std::endl;
@@ -491,6 +502,11 @@ MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
   if (!video_state.video_ctx) {
     return nullptr;
   }
+
+  if (video_state.global_pause) {
+    return nullptr;
+  }
+
   // check if currently seeking
   if (video_state.seek_requested) {
     video_buffer.cond.notify_one();
@@ -561,6 +577,10 @@ MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
 }
 
 uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
+  if (video_state.global_pause) {
+    return nullptr;
+  }
+
   if (video_state.seek_requested) {
     return nullptr;
   }
@@ -591,6 +611,8 @@ uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
 
 void VideoDecoder::stream_seek(int64_t pos, int rel) {
   if (!video_state.seek_requested) {
+    video_state.global_finished = false;
+
     video_state.seek_pos = pos;
     // TODO: check which flag to use
     video_state.seek_flags = (rel < 0) ? AVSEEK_FLAG_BACKWARD : 0;
