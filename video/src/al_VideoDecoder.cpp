@@ -499,6 +499,9 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   av_frame_free(&frameRGB);
   av_frame_free(&frame);
   av_packet_free(&packet);
+
+  vs->global_quit = 2;
+  vs->global_finished = true;
 }
 
 MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
@@ -704,6 +707,19 @@ void VideoDecoder::stop() {
   video_buffer.cond.notify_one();
   audio_buffer.cond.notify_one();
 
+  for (int i = 0; i < 5; ++i) {
+    if (decode_thread) {
+      if (decode_thread->joinable()) {
+        break;
+      } else {
+        std::cout << "waiting for decode thread to finish" << std::endl;
+      }
+      video_buffer.cond.notify_one();
+      audio_buffer.cond.notify_one();
+      al_sleep_nsec(100000);
+    }
+  }
+
   if (decode_thread) {
     decode_thread->join();
   }
@@ -712,4 +728,5 @@ void VideoDecoder::stop() {
   delete dth;
 
   cleanup();
+  init(); // in case destructor gets called again
 }
