@@ -321,9 +321,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         if (vs->audio_st && vs->audio_enabled) {
           vs->audio_frames->flush();
         }
+        vs->seek_requested = 0;
       }
-
-      vs->seek_requested = 0;
       // std::cout << "seek end" << std::endl;
     }
 
