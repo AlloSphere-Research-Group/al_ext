@@ -42,7 +42,7 @@ void VideoDecoder::init() {
   video_state.seek_flags = 0;
   video_state.seek_pos = 0;
 
-  video_state.global_quit = 0;
+  video_state.global_quit.store(false);
   video_state.global_pause = false;
   video_state.global_loop = false;
   video_state.global_finished = false;
@@ -240,7 +240,6 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   AVPacket *packet = av_packet_alloc();
   if (!packet) {
     std::cerr << "Could not allocate packet" << std::endl;
-    vs->global_quit = -1;
     return;
   }
 
@@ -248,7 +247,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   AVFrame *frame = av_frame_alloc();
   if (!frame) {
     std::cerr << "Could not allocate frame" << std::endl;
-    vs->global_quit = -1;
+    av_packet_free(&packet);
     return;
   }
 
@@ -256,7 +255,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   AVFrame *frameRGB = av_frame_alloc();
   if (!frameRGB) {
     std::cerr << "Could not allocate frameRGB" << std::endl;
-    vs->global_quit = -1;
+    av_frame_free(&frame);
+    av_packet_free(&packet);
     return;
   }
 
@@ -281,7 +281,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
       (uint8_t *)av_malloc(vs->audio_frame_size * sizeof(uint8_t));
 
   // check global quit flag
-  while (vs->global_quit == 0) {
+  while (!vs->global_quit.load()) {
     // seeking
     if (vs->seek_requested) {
       // std::cout << "seek start" << std::endl;
@@ -337,7 +337,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
       if (vs->format_ctx->pb->error == 0) {
         vs->global_finished = true;
         if (!vs->global_loop) {
-          vs->global_quit = 1;
+          vs->global_quit.store(true);
         }
         // al_sleep_nsec(100000000); // 10 ms
         continue;
@@ -355,7 +355,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         break;
       }
 
-      while (vs->global_quit == 0) {
+      while (!vs->global_quit.load()) {
         // get decoded output data from decoder
         int ret = avcodec_receive_frame(vs->video_ctx, frame);
 
@@ -365,11 +365,11 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
           break;
         } else if (ret == AVERROR_EOF) {
           std::cerr << "EOF Error" << std::endl;
-          vs->global_quit = 1;
+          vs->global_quit.store(true);
           break;
         } else if (ret < 0) {
           std::cerr << "Error while decoding" << std::endl;
-          vs->global_quit = -1;
+          vs->global_quit.store(true);
           break;
         }
 
@@ -412,7 +412,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
                                       bufferV, numBytesV, pts)) {
           vs->video_frames->cond.wait(lk);
 
-          if (vs->global_quit != 0 || vs->seek_requested) {
+          if (vs->global_quit.load() || vs->seek_requested) {
             break;
           }
         }
@@ -429,7 +429,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         break;
       }
 
-      while (vs->global_quit == 0) {
+      while (!vs->global_quit.load()) {
         // get decoded output data from decoder
         int ret = avcodec_receive_frame(vs->audio_ctx, frame);
 
@@ -438,11 +438,11 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
           // need more data
           break;
         } else if (ret == AVERROR_EOF) {
-          vs->global_quit = 1;
+          vs->global_quit.store(true);
           break;
         } else if (ret < 0) {
           std::cerr << "Error while decoding" << std::endl;
-          vs->global_quit = -1;
+          vs->global_quit.store(true);
           break;
         }
 
@@ -479,7 +479,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         while (!vs->audio_frames->put(audio_out, vs->audio_frame_size, pts)) {
           vs->audio_frames->cond.wait(lk);
 
-          if (vs->global_quit != 0 || vs->seek_requested) {
+          if (vs->global_quit.load() || vs->seek_requested) {
             break;
           }
         }
@@ -499,7 +499,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   av_frame_free(&frame);
   av_packet_free(&packet);
 
-  vs->global_quit = 2;
+  vs->global_quit.store(true);
   vs->global_finished = true;
 }
 
@@ -702,22 +702,9 @@ void VideoDecoder::cleanup() {
 }
 
 void VideoDecoder::stop() {
-  video_state.global_quit = 1;
+  video_state.global_quit.store(true);
   video_buffer.cond.notify_one();
   audio_buffer.cond.notify_one();
-
-  for (int i = 0; i < 5; ++i) {
-    if (decode_thread) {
-      if (decode_thread->joinable()) {
-        break;
-      } else {
-        std::cout << "waiting for decode thread to finish" << std::endl;
-      }
-      video_buffer.cond.notify_one();
-      audio_buffer.cond.notify_one();
-      al_sleep_nsec(100000);
-    }
-  }
 
   if (decode_thread) {
     decode_thread->join();

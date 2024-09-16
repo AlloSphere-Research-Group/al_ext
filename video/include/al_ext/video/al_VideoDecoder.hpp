@@ -61,8 +61,8 @@ struct VideoState {
   int seek_flags;
   int64_t seek_pos;
 
-  // ** Global Quit Flag **
-  int global_quit;
+  // ** Playback **
+  std::atomic<bool> global_quit;
   bool global_pause;
   bool global_loop;
   bool global_finished;
