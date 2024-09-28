@@ -45,7 +45,7 @@ void VideoDecoder::init() {
   video_state.global_quit.store(false);
   video_state.global_pause = false;
   video_state.global_loop = false;
-  video_state.global_finished = false;
+  video_state.global_finished.store(false);
 }
 
 bool VideoDecoder::load(const char *url) {
@@ -326,8 +326,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
       // std::cout << "seek end" << std::endl;
     }
 
-    if (vs->global_finished) {
-      al_sleep_nsec(100000000); // 10 ms
+    if (vs->global_finished.load()) {
+      al_sleep_nsec(1000000); // 10 ms
       continue;
     }
 
@@ -335,7 +335,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
     if (av_read_frame(vs->format_ctx, packet) < 0) {
       // no read error; wait for file
       if (vs->format_ctx->pb->error == 0) {
-        vs->global_finished = true;
+        vs->global_finished.store(true);
         if (!vs->global_loop) {
           vs->global_quit.store(true);
         }
@@ -410,7 +410,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         // while (!vs->video_frames->put(buffer, numBytes, pts)) {
         while (!vs->video_frames->put(bufferY, numBytesY, bufferU, numBytesU,
                                       bufferV, numBytesV, pts)) {
-          vs->video_frames->cond.wait(lk);
+          vs->video_frames->cond.wait_for(lk, std::chrono::milliseconds(10));
 
           if (vs->global_quit.load() || vs->seek_requested) {
             break;
@@ -477,7 +477,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         std::unique_lock<std::mutex> lk(vs->audio_frames->mutex);
 
         while (!vs->audio_frames->put(audio_out, vs->audio_frame_size, pts)) {
-          vs->audio_frames->cond.wait(lk);
+          vs->audio_frames->cond.wait_for(lk, std::chrono::milliseconds(10));
 
           if (vs->global_quit.load() || vs->seek_requested) {
             break;
@@ -500,7 +500,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   av_packet_free(&packet);
 
   vs->global_quit.store(true);
-  vs->global_finished = true;
+  vs->global_finished.store(true);
 }
 
 MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
@@ -616,7 +616,7 @@ uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
 
 void VideoDecoder::stream_seek(int64_t pos, int rel) {
   if (!video_state.seek_requested) {
-    video_state.global_finished = false;
+    video_state.global_finished.store(false);
 
     video_state.seek_pos = pos;
     // TODO: check which flag to use
@@ -703,6 +703,9 @@ void VideoDecoder::cleanup() {
 
 void VideoDecoder::stop() {
   video_state.global_quit.store(true);
+  video_state.global_finished.store(true);
+  video_buffer.cond.notify_one();
+  audio_buffer.cond.notify_one();
   video_buffer.cond.notify_one();
   audio_buffer.cond.notify_one();
 

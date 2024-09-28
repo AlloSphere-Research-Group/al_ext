@@ -63,9 +63,9 @@ struct VideoState {
 
   // ** Playback **
   std::atomic<bool> global_quit;
+  std::atomic<bool> global_finished;
   bool global_pause;
   bool global_loop;
-  bool global_finished;
 };
 
 class VideoDecoder {
