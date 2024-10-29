@@ -64,6 +64,8 @@ public:
 
   int addNode(const aiNode *n, int idx) {
     nodes[idx].mImpl = new Scene::Node::Impl(n);
+    auto t = n->mTransformation;
+    nodes[idx].transform = Mat4f(t.a1, t.a2, t.a3, t.a4, t.b1, t.b2, t.b3, t.b4, t.c1, t.c2, t.c3, t.c4, t.d1, t.d2, t.d3, t.d4);
     nodeMap[n] = idx;
     for (unsigned int i = 0; i < n->mNumChildren; i++) {
       idx = addNode(n->mChildren[i], idx + 1);

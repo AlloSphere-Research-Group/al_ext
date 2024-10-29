@@ -82,6 +82,7 @@
 #include "al/types/al_Color.hpp"
 #include "al/graphics/al_Mesh.hpp"
 #include "al/math/al_Vec.hpp"
+#include "al/math/al_Mat.hpp"
 
 namespace al{
 
@@ -103,6 +104,8 @@ public:
 
 		Node();
 		~Node();
+
+		Mat4f transform;
 
 		std::string name() const;
 		Impl * mImpl;
