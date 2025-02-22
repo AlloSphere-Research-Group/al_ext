@@ -57,14 +57,14 @@ struct VideoState {
   double last_frame_pts;
 
   // ** Seek **
-  bool seek_requested;
+  std::atomic<bool> seek_requested;
   int seek_flags;
   int64_t seek_pos;
 
   // ** Playback **
   std::atomic<bool> global_quit;
   std::atomic<bool> global_finished;
-  bool global_pause;
+  std::atomic<bool> global_pause;
   bool global_loop;
 };
 

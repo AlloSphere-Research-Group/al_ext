@@ -283,7 +283,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   // check global quit flag
   while (!vs->global_quit.load()) {
     // seeking
-    if (vs->seek_requested) {
+    if (vs->seek_requested.load()) {
       // std::cout << "seek start" << std::endl;
       int video_stream_index = -1;
       int audio_stream_index = -1;
@@ -321,7 +321,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         if (vs->audio_st && vs->audio_enabled) {
           vs->audio_frames->flush();
         }
-        vs->seek_requested = 0;
+        vs->seek_requested.store(false);
       }
       // std::cout << "seek end" << std::endl;
     }
@@ -412,7 +412,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
                                       bufferV, numBytesV, pts)) {
           vs->video_frames->cond.wait_for(lk, std::chrono::milliseconds(10));
 
-          if (vs->global_quit.load() || vs->seek_requested) {
+          if (vs->global_quit.load() || vs->seek_requested.load()) {
             break;
           }
         }
@@ -479,7 +479,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         while (!vs->audio_frames->put(audio_out, vs->audio_frame_size, pts)) {
           vs->audio_frames->cond.wait_for(lk, std::chrono::milliseconds(10));
 
-          if (vs->global_quit.load() || vs->seek_requested) {
+          if (vs->global_quit.load() || vs->seek_requested.load()) {
             break;
           }
         }
@@ -513,7 +513,7 @@ MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
   }
 
   // check if currently seeking
-  if (video_state.seek_requested) {
+  if (video_state.seek_requested.load()) {
     video_buffer.cond.notify_one();
     audio_buffer.cond.notify_one();
     return nullptr;
@@ -582,11 +582,11 @@ MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
 }
 
 uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
-  if (video_state.global_pause) {
+  if (video_state.global_pause.load()) {
     return nullptr;
   }
 
-  if (video_state.seek_requested) {
+  if (video_state.seek_requested.load()) {
     return nullptr;
   }
 
@@ -615,14 +615,14 @@ uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
 }
 
 void VideoDecoder::stream_seek(int64_t pos, int rel) {
-  if (!video_state.seek_requested) {
+  if (!video_state.seek_requested.load()) {
     video_state.global_finished.store(false);
 
     video_state.seek_pos = pos;
     // TODO: check which flag to use
     video_state.seek_flags = (rel < 0) ? AVSEEK_FLAG_BACKWARD : 0;
     // video_state.seek_flags = AVSEEK_FLAG_ANY;
-    video_state.seek_requested = 1;
+    video_state.seek_requested.store(true);
 
     delay_next_frame = false;
     skip_next_frame = false;
