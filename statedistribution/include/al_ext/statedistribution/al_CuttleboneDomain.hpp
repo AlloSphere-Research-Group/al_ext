@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "al/app/al_App.hpp"
-#include "al/app/al_ComputationDomain.hpp"
+#include "al/domain/al_ComputationDomain.hpp"
 #include "al/app/al_DistributedApp.hpp"
-#include "al/app/al_StateDistributionDomain.hpp"
+#include "al/domain/al_StateDistributionDomain.hpp"
 #include "al/spatial/al_Pose.hpp"
 
 #ifdef AL_USE_CUTTLEBONE

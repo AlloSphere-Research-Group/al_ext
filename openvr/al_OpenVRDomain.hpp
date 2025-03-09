@@ -4,8 +4,8 @@
 #include <functional>
 #include <iostream>
 
+#include "al/domain/al_OpenGLGraphicsDomain.hpp"
 #include "al/app/al_App.hpp"
-#include "al/app/al_OpenGLGraphicsDomain.hpp"
 #include "al_ext/openvr/al_OpenVRWrapper.hpp"
 
 namespace al {

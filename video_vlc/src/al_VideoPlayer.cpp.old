@@ -1,0 +1,205 @@
+#include "al_ext/video/al_VideoPlayer.hpp"
+
+namespace al {
+
+VideoPlayer::VideoPlayer() {
+    
+    putenv("VLC_PLUGIN_PATH=/Applications/VLC.app/Contents/MacOS/plugins");
+    putenv("VLC_VERBOSE=3");
+    if (!setupVLC()) {
+        std::cerr << "Failed to initialize VLC" << std::endl;
+    }
+}
+
+VideoPlayer::~VideoPlayer() {
+    cleanup();
+}
+
+bool VideoPlayer::setupVLC() {
+    if (mVLC) {
+        return true; // Already initialized
+    }
+    // Create VLC instance
+    const char* args[] = {
+        "-vv",
+        "--no-audio", // Skip audio decoding
+        "--no-xlib", // Skip X11 dependency
+        //"--plugin-path=/Applications/VLC.app/Contents/MacOS/plugins",
+    };
+    mVLC = libvlc_new(3, args);
+    return mVLC != nullptr;
+}
+
+void VideoPlayer::cleanup() {
+    if (mMediaPlayer) {
+        libvlc_media_player_release(mMediaPlayer);
+        mMediaPlayer = nullptr;
+    }
+    if (mMedia) {
+        libvlc_media_release(mMedia);
+        mMedia = nullptr;
+    }
+    if (mVLC) {
+        libvlc_release(mVLC);
+        mVLC = nullptr;
+    }
+    mIsLoaded = false;
+    mIsPlaying = false;
+}
+
+bool VideoPlayer::open(const std::string& filename) {
+    //cleanup();
+    mWidth = 1920;
+    mHeight = 1088;
+    size_t size = mWidth * mHeight * 4;
+    mPixelBuffer.resize(size);
+    mTexture.create2D(mWidth, mHeight, Texture::RGBA8, Texture::RGBA, Texture::UBYTE);
+    
+    // Create media
+    mMedia = libvlc_media_new_path(mVLC, filename.c_str());
+    if (!mMedia) return false;
+    
+    // Create media player
+    mMediaPlayer = libvlc_media_player_new_from_media(mMedia);
+    if (!mMediaPlayer) return false;
+    
+    // Set up video callbacks
+    libvlc_video_set_callbacks(mMediaPlayer, 
+                              lock, unlock, display,
+                              this);
+
+    // Set format callbacks to get dimensions
+    // libvlc_video_set_format_callbacks(mMediaPlayer,
+    //     // Setup callback
+    //     [](void **opaque, char *chroma,
+    //         unsigned *width, unsigned *height,
+    //         unsigned *pitches, unsigned *lines) -> unsigned
+    //     {
+    //         VideoPlayer* player = static_cast<VideoPlayer*>(*opaque);
+    //         player->mWidth = *width;
+    //         player->mHeight = *height;
+            
+    //         // Set RGBA format
+    //         memcpy(chroma, "RGBA", 4);
+    //         *pitches = *width * 4;
+    //         *lines = *height;
+            
+    //         // Allocate buffer
+    //         size_t size = (*width) * (*height) * 4;
+    //         player->mPixelBuffer.resize(size);
+    //         //player->mTexture.create2D(player->mWidth, player->mHeight, Texture::RGBA8, Texture::RGBA, Texture::UBYTE);
+
+    //         return 1;
+    //     },
+    //     // Cleanup callback
+    //     [](void *opaque) {
+    //         // Nothing to clean up here
+    //     }
+    );
+    
+    // // Set video format
+    // libvlc_video_set_format(mMediaPlayer, "RGBA",
+    //                        mWidth, mHeight,
+    //                        mWidth * 4);
+    
+    // Initialize texture
+    // mTexture.init(mWidth, mHeight);
+    // mTexture.create2D(mWidth, mHeight, Texture::RGBA8, Texture::RGBA, Texture::UBYTE);
+    
+    mIsLoaded = true;
+    return true;
+}
+
+void* VideoPlayer::lock(void* data, void** pixels) {
+    VideoPlayer* player = static_cast<VideoPlayer*>(data);
+    // std::lock_guard<std::mutex> lock(player->mBufferMutex);
+    player->mBufferMutex.lock();
+    
+    // Ensure buffer is large enough
+    size_t size = player->mWidth * player->mHeight * 4;
+    if (player->mPixelBuffer.size() < size) {
+        player->mPixelBuffer.resize(size);
+    }
+    
+    *pixels = player->mPixelBuffer.data();
+    return nullptr;
+}
+
+void VideoPlayer::unlock(void* data, void* id, void* const* pixels) {
+    VideoPlayer* player = static_cast<VideoPlayer*>(data);
+    // Unlock the buffer
+    player->mBufferMutex.unlock();
+    (void)data;
+    (void)id;
+    (void)pixels;
+}
+
+void VideoPlayer::display(void* data, void* id) {
+    VideoPlayer* player = static_cast<VideoPlayer*>(data);
+    std::lock_guard<std::mutex> lock(player->mBufferMutex);
+    
+    // Update texture with new frame
+    player->mTexture.submit(player->mPixelBuffer.data());
+}
+
+void VideoPlayer::play() {
+    if (mMediaPlayer && !mIsPlaying) {
+        libvlc_media_player_play(mMediaPlayer);
+        mIsPlaying = true;
+    }
+}
+
+void VideoPlayer::pause() {
+    if (mMediaPlayer && mIsPlaying) {
+        libvlc_media_player_pause(mMediaPlayer);
+        mIsPlaying = false;
+    }
+}
+
+void VideoPlayer::stop() {
+    if (mMediaPlayer) {
+        libvlc_media_player_stop(mMediaPlayer);
+        mIsPlaying = false;
+    }
+}
+
+void VideoPlayer::seek(float position) {
+    if (mMediaPlayer) {
+        libvlc_media_player_set_position(mMediaPlayer, position);
+    }
+}
+
+float VideoPlayer::duration() const {
+    if (mMediaPlayer) {
+        return libvlc_media_player_get_length(mMediaPlayer) / 1000.0f;
+    }
+    return 0.0f;
+}
+
+float VideoPlayer::position() const {
+    if (mMediaPlayer) {
+        return libvlc_media_player_get_position(mMediaPlayer);
+    }
+    return 0.0f;
+}
+
+void VideoPlayer::setLoop(bool loop) {
+    if (mMediaPlayer) {
+        // Set up event handling for looping
+        // This would require additional event handling code
+    }
+}
+
+void VideoPlayer::setVolume(float volume) {
+    if (mMediaPlayer) {
+        libvlc_audio_set_volume(mMediaPlayer, static_cast<int>(volume * 100));
+    }
+}
+
+void VideoPlayer::setPlaybackRate(float rate) {
+    if (mMediaPlayer) {
+        libvlc_media_player_set_rate(mMediaPlayer, rate);
+    }
+}
+
+} // namespace al

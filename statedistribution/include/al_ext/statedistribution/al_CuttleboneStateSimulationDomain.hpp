@@ -7,8 +7,8 @@
 #include <iostream>
 #include <map>
 
+#include "al/domain/al_SimulationDomain.hpp"
 #include "al/app/al_DistributedApp.hpp"
-#include "al/app/al_SimulationDomain.hpp"
 #include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
 
 #ifdef AL_USE_CUTTLEBONE

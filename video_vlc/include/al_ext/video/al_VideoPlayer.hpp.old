@@ -1,0 +1,77 @@
+#ifndef INCLUDE_AL_VIDEO_PLAYER_HPP
+#define INCLUDE_AL_VIDEO_PLAYER_HPP
+
+// #include "al_ext/video/al_VideoTexture.hpp"
+#include "al/graphics/al_Graphics.hpp"
+#include <vlc/vlc.h>
+#include <memory>
+#include <string>
+#include <atomic>
+#include <vector>
+
+namespace al {
+
+class VideoPlayer {
+public:
+    VideoPlayer();
+    ~VideoPlayer();
+
+    // Load and play video file
+    bool open(const std::string& filename);
+    
+    // Playback control
+    void play();
+    void pause();
+    void stop();
+    void seek(float position); // 0.0 to 1.0
+    
+    // State queries
+    bool isPlaying() const { return mIsPlaying; }
+    bool isLoaded() const { return mIsLoaded; }
+    float duration() const; // in seconds
+    float position() const; // 0.0 to 1.0
+    
+    // Video properties
+    int width() const { return mWidth; }
+    int height() const { return mHeight; }
+    
+    // Get texture for rendering
+    Texture& texture() { return mTexture; }
+    
+    // Set playback properties
+    void setLoop(bool loop);
+    void setVolume(float volume); // 0.0 to 1.0
+    void setPlaybackRate(float rate); // 1.0 is normal speed
+
+private:
+    // VLC callback functions
+    static void* lock(void* data, void** pixels);
+    static void unlock(void* data, void* id, void* const* pixels);
+    static void display(void* data, void* id);
+
+    // Internal setup
+    bool setupVLC();
+    void cleanup();
+
+    // VLC instance and media player
+    libvlc_instance_t* mVLC{nullptr};
+    libvlc_media_player_t* mMediaPlayer{nullptr};
+    libvlc_media_t* mMedia{nullptr};
+
+    // Video properties
+    int mWidth{0};
+    int mHeight{0};
+    std::atomic<bool> mIsPlaying{false};
+    std::atomic<bool> mIsLoaded{false};
+    
+    // Pixel buffer for video frames
+    std::vector<unsigned char> mPixelBuffer;
+    std::mutex mBufferMutex;
+    
+    // Texture for rendering
+    Texture mTexture;
+};
+
+} // namespace al
+
+#endif
