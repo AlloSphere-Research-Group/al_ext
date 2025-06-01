@@ -224,6 +224,7 @@ public:
       ComputationDomain::mInitialized = true;
       return ret;
     }
+    return true;
 #else
     }
     return false;
