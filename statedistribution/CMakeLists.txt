@@ -8,7 +8,6 @@ include("../BuildExamples.cmake")
 
 
 set(THIS_EXTENSION_SRC
-
   ${CMAKE_CURRENT_LIST_DIR}/src/al_CuttleboneStateSimulationDomain.cpp
   ${CMAKE_CURRENT_LIST_DIR}/src/al_CuttleboneDomain.cpp
 )
