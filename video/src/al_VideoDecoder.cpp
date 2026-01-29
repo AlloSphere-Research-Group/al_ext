@@ -11,7 +11,8 @@
 
 using namespace al;
 
-void VideoDecoder::init() {
+void VideoDecoder::init()
+{
   video_state.format_ctx = nullptr;
 
   video_state.video_st_idx = -1;
@@ -48,7 +49,8 @@ void VideoDecoder::init() {
   video_state.global_finished.store(false);
 }
 
-bool VideoDecoder::load(const char *url) {
+bool VideoDecoder::load(const char* url)
+{
   // open file
   if (avformat_open_input(&video_state.format_ctx, url, NULL, NULL) < 0) {
     std::cerr << "Could not open file: " << url << std::endl;
@@ -71,23 +73,22 @@ bool VideoDecoder::load(const char *url) {
             AVMEDIA_TYPE_VIDEO &&
         video_state.video_st_idx < 0) {
       video_state.video_st_idx = i;
-      if (video_state.audio_st_idx > 0)
-        break;
+      if (video_state.audio_st_idx > 0) break;
     }
 
     if (video_state.format_ctx->streams[i]->codecpar->codec_type ==
             AVMEDIA_TYPE_AUDIO &&
         video_state.audio_st_idx < 0) {
       video_state.audio_st_idx = i;
-      if (video_state.video_st_idx > 0)
-        break;
+      if (video_state.video_st_idx > 0) break;
     }
   }
 
   if (video_state.video_st_idx == -1) {
     std::cerr << "Could not find video stream" << std::endl;
     return false;
-  } else if (!stream_component_open(&video_state, video_state.video_st_idx)) {
+  }
+  else if (!stream_component_open(&video_state, video_state.video_st_idx)) {
     std::cerr << "Could not open video codec" << std::endl;
     return false;
   }
@@ -96,7 +97,8 @@ bool VideoDecoder::load(const char *url) {
     // no audio stream
     // TODO: consider audio only files
     video_state.audio_enabled = false;
-  } else if (video_state.audio_enabled) {
+  }
+  else if (video_state.audio_enabled) {
     if (!stream_component_open(&video_state, video_state.audio_st_idx)) {
       std::cerr << "Could not open audio codec" << std::endl;
       return false;
@@ -111,7 +113,8 @@ bool VideoDecoder::load(const char *url) {
   return true;
 }
 
-bool VideoDecoder::stream_component_open(VideoState *vs, int stream_index) {
+bool VideoDecoder::stream_component_open(VideoState* vs, int stream_index)
+{
   // check if stream index is valid
   if (stream_index < 0 || stream_index >= vs->format_ctx->nb_streams) {
     std::cerr << "Invalid stream index" << std::endl;
@@ -119,7 +122,7 @@ bool VideoDecoder::stream_component_open(VideoState *vs, int stream_index) {
   }
 
   // retrieve codec
-  const AVCodec *codec = nullptr;
+  const AVCodec* codec = nullptr;
   codec = avcodec_find_decoder(
       vs->format_ctx->streams[stream_index]->codecpar->codec_id);
   if (!codec) {
@@ -128,7 +131,7 @@ bool VideoDecoder::stream_component_open(VideoState *vs, int stream_index) {
   }
 
   // retrieve codec context
-  AVCodecContext *codecCtx = nullptr;
+  AVCodecContext* codecCtx = nullptr;
   codecCtx = avcodec_alloc_context3(codec);
   if (avcodec_parameters_to_context(
           codecCtx, vs->format_ctx->streams[stream_index]->codecpar) != 0) {
@@ -143,44 +146,47 @@ bool VideoDecoder::stream_component_open(VideoState *vs, int stream_index) {
   }
 
   switch (codecCtx->codec_type) {
-  case AVMEDIA_TYPE_AUDIO: {
-    vs->audio_st = vs->format_ctx->streams[stream_index];
-    vs->audio_ctx = codecCtx;
+    case AVMEDIA_TYPE_AUDIO: {
+      vs->audio_st = vs->format_ctx->streams[stream_index];
+      vs->audio_ctx = codecCtx;
 
-    // set parameters
-    vs->audio_sample_size = av_get_bytes_per_sample(vs->audio_ctx->sample_fmt);
-    if (vs->audio_sample_size < 0) {
-      std::cerr << "Failed to calculate data size" << std::endl;
-      return false;
+      // set parameters
+      vs->audio_sample_size =
+          av_get_bytes_per_sample(vs->audio_ctx->sample_fmt);
+      if (vs->audio_sample_size < 0) {
+        std::cerr << "Failed to calculate data size" << std::endl;
+        return false;
+      }
+
+      vs->audio_channel_size =
+          vs->audio_sample_size * vs->audio_ctx->frame_size;
+
+      vs->audio_frame_size = vs->audio_sample_size * vs->audio_ctx->frame_size *
+                             vs->audio_ctx->channels;
+    } break;
+    case AVMEDIA_TYPE_VIDEO: {
+      vs->video_st = vs->format_ctx->streams[stream_index];
+      vs->video_ctx = codecCtx;
+
+      // initialize SWS context for software scaling
+      vs->sws_ctx = sws_getContext(vs->video_ctx->width, vs->video_ctx->height,
+                                   vs->video_ctx->pix_fmt, vs->video_ctx->width,
+                                   vs->video_ctx->height, AV_PIX_FMT_GRAY8,
+                                   SWS_FAST_BILINEAR, NULL, NULL, NULL);
+
+      av_image_fill_linesizes(vs->line_sizes, AV_PIX_FMT_YUV420P,
+                              codecCtx->width);
+    } break;
+    default: {
+      break;
     }
-
-    vs->audio_channel_size = vs->audio_sample_size * vs->audio_ctx->frame_size;
-
-    vs->audio_frame_size = vs->audio_sample_size * vs->audio_ctx->frame_size *
-                           vs->audio_ctx->ch_layout.nb_channels;
-  } break;
-  case AVMEDIA_TYPE_VIDEO: {
-    vs->video_st = vs->format_ctx->streams[stream_index];
-    vs->video_ctx = codecCtx;
-
-    // initialize SWS context for software scaling
-    vs->sws_ctx = sws_getContext(vs->video_ctx->width, vs->video_ctx->height,
-                                 vs->video_ctx->pix_fmt, vs->video_ctx->width,
-                                 vs->video_ctx->height, AV_PIX_FMT_GRAY8,
-                                 SWS_FAST_BILINEAR, NULL, NULL, NULL);
-
-    av_image_fill_linesizes(vs->line_sizes, AV_PIX_FMT_YUV420P,
-                            codecCtx->width);
-  } break;
-  default: {
-    break;
-  }
   }
 
   return true;
 }
 
-void VideoDecoder::start() {
+void VideoDecoder::start()
+{
   // if threads are already running, close them
   if (decode_thread != nullptr) {
     stop();
@@ -200,7 +206,8 @@ void VideoDecoder::start() {
                                    THREAD_PRIORITY_HIGHEST);
     if (result == 0) {
       std::cerr << "set priority failed" << std::endl;
-    } else {
+    }
+    else {
       std::cout << "Decode thread set to NORMAL_PRIORITY_CLASS, "
                    "THREAD_PRIORITY_HIGHEST"
                 << std::endl;
@@ -235,16 +242,17 @@ void VideoDecoder::start() {
   }
 }
 
-void VideoDecoder::decodeThreadFunction(VideoState *vs) {
+void VideoDecoder::decodeThreadFunction(VideoState* vs)
+{
   // // allocate packet
-  AVPacket *packet = av_packet_alloc();
+  AVPacket* packet = av_packet_alloc();
   if (!packet) {
     std::cerr << "Could not allocate packet" << std::endl;
     return;
   }
 
   // allocate frame
-  AVFrame *frame = av_frame_alloc();
+  AVFrame* frame = av_frame_alloc();
   if (!frame) {
     std::cerr << "Could not allocate frame" << std::endl;
     av_packet_free(&packet);
@@ -252,7 +260,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   }
 
   // allocate frame
-  AVFrame *frameRGB = av_frame_alloc();
+  AVFrame* frameRGB = av_frame_alloc();
   if (!frameRGB) {
     std::cerr << "Could not allocate frameRGB" << std::endl;
     av_frame_free(&frame);
@@ -262,7 +270,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 
   int numBytes = av_image_get_buffer_size(
       AV_PIX_FMT_GRAY8, vs->video_ctx->width, vs->video_ctx->height, 32);
-  uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+  uint8_t* buffer = (uint8_t*)av_malloc(numBytes * sizeof(uint8_t));
 
   // Setup pointers and linesize for dst frame and image data buffer
   av_image_fill_arrays(frameRGB->data, frameRGB->linesize, buffer,
@@ -273,12 +281,12 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   int numBytesU = vs->line_sizes[1] * vs->video_ctx->height / 2;
   int numBytesV = vs->line_sizes[2] * vs->video_ctx->height / 2;
 
-  uint8_t *bufferY = (uint8_t *)av_malloc(numBytesY * sizeof(uint8_t));
-  uint8_t *bufferU = (uint8_t *)av_malloc(numBytesU * sizeof(uint8_t));
-  uint8_t *bufferV = (uint8_t *)av_malloc(numBytesV * sizeof(uint8_t));
+  uint8_t* bufferY = (uint8_t*)av_malloc(numBytesY * sizeof(uint8_t));
+  uint8_t* bufferU = (uint8_t*)av_malloc(numBytesU * sizeof(uint8_t));
+  uint8_t* bufferV = (uint8_t*)av_malloc(numBytesV * sizeof(uint8_t));
 
-  uint8_t *audio_out =
-      (uint8_t *)av_malloc(vs->audio_frame_size * sizeof(uint8_t));
+  uint8_t* audio_out =
+      (uint8_t*)av_malloc(vs->audio_frame_size * sizeof(uint8_t));
 
   // check global quit flag
   while (!vs->global_quit.load()) {
@@ -290,8 +298,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
       int64_t video_seek_target = vs->seek_pos;
       int64_t audio_seek_target = vs->seek_pos;
 
-      if (vs->video_st)
-        video_stream_index = vs->video_st_idx;
+      if (vs->video_st) video_stream_index = vs->video_st_idx;
       if (vs->audio_st && vs->audio_enabled)
         audio_stream_index = vs->audio_st_idx;
 
@@ -314,7 +321,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
 
       if (ret < 0) {
         std::cerr << "Error while seeking" << std::endl;
-      } else {
+      }
+      else {
         if (vs->video_st) {
           vs->video_frames->flush();
         }
@@ -327,7 +335,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
     }
 
     if (vs->global_finished.load()) {
-      al_sleep_nsec(1000000); // 10 ms
+      al_sleep_nsec(1000000);  // 10 ms
       continue;
     }
 
@@ -341,7 +349,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         }
         // al_sleep_nsec(100000000); // 10 ms
         continue;
-      } else {
+      }
+      else {
         std::cerr << "Error reading frame" << std::endl;
         break;
       }
@@ -363,11 +372,13 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         if (ret == AVERROR(EAGAIN)) {
           // need more data
           break;
-        } else if (ret == AVERROR_EOF) {
+        }
+        else if (ret == AVERROR_EOF) {
           std::cerr << "EOF Error" << std::endl;
           vs->global_quit.store(true);
           break;
-        } else if (ret < 0) {
+        }
+        else if (ret < 0) {
           std::cerr << "Error while decoding" << std::endl;
           vs->global_quit.store(true);
           break;
@@ -380,7 +391,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         if (pts == AV_NOPTS_VALUE) {
           // if we don't have a pts, use the video clock
           pts = vs->video_clock;
-        } else {
+        }
+        else {
           // convert pts using video stream's time base
           pts *= av_q2d(vs->video_st->time_base);
 
@@ -417,7 +429,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
           }
         }
       }
-    } else if (packet->stream_index == vs->audio_st_idx) {
+    }
+    else if (packet->stream_index == vs->audio_st_idx) {
       // skip if audio has been disabled
       if (!vs->audio_enabled) {
         av_packet_unref(packet);
@@ -437,10 +450,12 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         if (ret == AVERROR(EAGAIN)) {
           // need more data
           break;
-        } else if (ret == AVERROR_EOF) {
+        }
+        else if (ret == AVERROR_EOF) {
           vs->global_quit.store(true);
           break;
-        } else if (ret < 0) {
+        }
+        else if (ret < 0) {
           std::cerr << "Error while decoding" << std::endl;
           vs->global_quit.store(true);
           break;
@@ -453,7 +468,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         if (pts == AV_NOPTS_VALUE) {
           // if we don't have a pts, use the audio clock
           pts = vs->audio_clock;
-        } else {
+        }
+        else {
           // convert pts using video stream's time base
           pts *= av_q2d(vs->audio_st->time_base);
 
@@ -469,7 +485,7 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
         //   break;
         // }
 
-        for (int i = 0; i < vs->audio_ctx->ch_layout.nb_channels; ++i) {
+        for (int i = 0; i < vs->audio_ctx->channels; ++i) {
           memcpy(audio_out + i * vs->audio_channel_size, frame->data[i],
                  vs->audio_channel_size);
         }
@@ -503,7 +519,8 @@ void VideoDecoder::decodeThreadFunction(VideoState *vs) {
   vs->global_finished.store(true);
 }
 
-MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
+MediaFrame* VideoDecoder::getVideoFrame(double external_clock)
+{
   if (!video_state.video_ctx) {
     return nullptr;
   }
@@ -551,7 +568,8 @@ MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
   if (video_state.master_sync == MasterSync::AV_SYNC_VIDEO) {
     // update master clock if video sync
     video_state.master_clock = video_output->pts;
-  } else {
+  }
+  else {
     // update master clock if external sync
     if (video_state.master_sync == MasterSync::AV_SYNC_EXTERNAL) {
       video_state.master_clock = external_clock;
@@ -572,7 +590,8 @@ MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
     if (video_diff > AV_SYNC_THRESHOLD) {
       delay_next_frame = true;
       skip_next_frame = false;
-    } else if (video_diff < -AV_SYNC_THRESHOLD) {
+    }
+    else if (video_diff < -AV_SYNC_THRESHOLD) {
       skip_next_frame = true;
       delay_next_frame = false;
     }
@@ -581,7 +600,8 @@ MediaFrame *VideoDecoder::getVideoFrame(double external_clock) {
   return video_output;
 }
 
-uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
+uint8_t* VideoDecoder::getAudioFrame(double external_clock)
+{
   if (video_state.global_pause.load()) {
     return nullptr;
   }
@@ -614,7 +634,8 @@ uint8_t *VideoDecoder::getAudioFrame(double external_clock) {
   return audio_output->dataY.data();
 }
 
-void VideoDecoder::stream_seek(int64_t pos, int rel) {
+void VideoDecoder::stream_seek(int64_t pos, int rel)
+{
   if (!video_state.seek_requested.load()) {
     video_state.global_finished.store(false);
 
@@ -632,43 +653,44 @@ void VideoDecoder::stream_seek(int64_t pos, int rel) {
   }
 }
 
-unsigned int VideoDecoder::audioSampleRate() {
-  if (video_state.audio_ctx)
-    return video_state.audio_ctx->sample_rate;
+unsigned int VideoDecoder::audioSampleRate()
+{
+  if (video_state.audio_ctx) return video_state.audio_ctx->sample_rate;
   return 0;
 }
 
-unsigned int VideoDecoder::audioNumChannels() {
-  if (video_state.audio_ctx)
-    return video_state.audio_ctx->ch_layout.nb_channels;
+unsigned int VideoDecoder::audioNumChannels()
+{
+  if (video_state.audio_ctx) return video_state.audio_ctx->channels;
   return 0;
 }
 
-unsigned int VideoDecoder::audioSamplesPerChannel() {
-  if (video_state.audio_ctx)
-    return video_state.audio_ctx->frame_size;
+unsigned int VideoDecoder::audioSamplesPerChannel()
+{
+  if (video_state.audio_ctx) return video_state.audio_ctx->frame_size;
   return 0;
 }
 
-int VideoDecoder::width() {
-  if (video_state.video_ctx)
-    return video_state.video_ctx->width;
+int VideoDecoder::width()
+{
+  if (video_state.video_ctx) return video_state.video_ctx->width;
   return 0;
 }
 
-int VideoDecoder::height() {
-  if (video_state.video_ctx)
-    return video_state.video_ctx->height;
+int VideoDecoder::height()
+{
+  if (video_state.video_ctx) return video_state.video_ctx->height;
   return 0;
 }
 
-int *VideoDecoder::lineSize() {
-  if (video_state.video_ctx)
-    return video_state.line_sizes;
+int* VideoDecoder::lineSize()
+{
+  if (video_state.video_ctx) return video_state.line_sizes;
   return nullptr;
 }
 
-double VideoDecoder::fps() {
+double VideoDecoder::fps()
+{
   if (video_state.format_ctx) {
     double guess = av_q2d(av_guess_frame_rate(video_state.format_ctx,
                                               video_state.video_st, NULL));
@@ -682,7 +704,8 @@ double VideoDecoder::fps() {
   return 30.0f;
 }
 
-void VideoDecoder::cleanup() {
+void VideoDecoder::cleanup()
+{
   if (video_state.audio_ctx) {
     // Close the audio codec
     avcodec_free_context(&video_state.audio_ctx);
@@ -701,7 +724,8 @@ void VideoDecoder::cleanup() {
   }
 }
 
-void VideoDecoder::stop() {
+void VideoDecoder::stop()
+{
   video_state.global_quit.store(true);
   video_state.global_finished.store(true);
   video_buffer.cond.notify_one();
@@ -712,10 +736,10 @@ void VideoDecoder::stop() {
   if (decode_thread) {
     decode_thread->join();
   }
-  std::thread *dth = decode_thread;
+  std::thread* dth = decode_thread;
   decode_thread = nullptr;
   delete dth;
 
   cleanup();
-  init(); // in case destructor gets called again
+  init();  // in case destructor gets called again
 }
