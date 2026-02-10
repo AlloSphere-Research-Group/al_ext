@@ -184,7 +184,8 @@ bool CuttleboneReceiveDomain<TSharedState, PACKET_SIZE, PORT>::init(
   }
   return true;
 #else
-    return false;
+  }
+  return false;
 #endif
 }
 
@@ -223,8 +224,10 @@ public:
       ComputationDomain::mInitialized = true;
       return ret;
     }
+    return true;
 #else
-        return false;
+    }
+    return false;
 #endif
   }
 
@@ -237,7 +240,7 @@ public:
     this->tickSubdomains(false);
     return true;
 #else
-        return false;
+    return false;
 #endif
   }
 
@@ -258,8 +261,8 @@ public:
     this->cleanupSubdomains(false);
     return true;
 #else
-        //    mState = nullptr;
-        return false;
+    //    mState = nullptr;
+    return false;
 #endif
   }
 

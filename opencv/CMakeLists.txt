@@ -5,10 +5,10 @@ ${CMAKE_CURRENT_LIST_DIR}
 
 include("../BuildExamples.cmake")
 
+find_package (OpenCV)
 if (EXISTS $ENV{OpenCV_DIR})
   set(OpenCV_DIR $ENV{OpenCV_DIR}/lib)
 endif()
-# find_package (OpenCV)
 
 if (NOT OPENCV_CORE_FOUND)
     message(WARNING "[al_opencv] OpenCV not found. Unable to build extension.")
@@ -25,7 +25,7 @@ else()
 
     target_include_directories(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/opencv/sources/include/" )
 
-    target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC al)
+    target_link_libraries(${THIS_EXTENSION_LIBRARY_NAME} PUBLIC alapp)
     set_target_properties(${THIS_EXTENSION_LIBRARY_NAME} PROPERTIES
       CXX_STANDARD 14
     )
