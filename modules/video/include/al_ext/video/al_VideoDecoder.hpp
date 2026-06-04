@@ -1,7 +1,6 @@
 #ifndef AL_VIDEODECODER_HPP
 #define AL_VIDEODECODER_HPP
 
-// #ifdef AL_EXT_LIBAV
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -18,7 +17,7 @@ extern "C" {
 #include "al/system/al_Time.hpp"
 #include "al_MediaBuffer.hpp"
 
-using namespace al;
+namespace al {
 
 static const int AUDIO_BUFFER_SIZE = 8;
 static const int VIDEO_BUFFER_SIZE = 8;
@@ -29,22 +28,22 @@ enum MasterSync { AV_SYNC_AUDIO = 0, AV_SYNC_VIDEO = 1, AV_SYNC_EXTERNAL = 2 };
 
 struct VideoState {
   // ** File I/O Context **
-  AVFormatContext *format_ctx;
+  AVFormatContext* format_ctx;
 
   // ** Video Stream **
   int video_st_idx;
-  AVStream *video_st;
-  AVCodecContext *video_ctx;
-  struct SwsContext *sws_ctx;
-  MediaBuffer *video_frames;
+  AVStream* video_st;
+  AVCodecContext* video_ctx;
+  struct SwsContext* sws_ctx;
+  MediaBuffer* video_frames;
   int line_sizes[4];
 
   // ** Audio Stream **
   bool audio_enabled;
   int audio_st_idx;
-  AVStream *audio_st;
-  AVCodecContext *audio_ctx;
-  MediaBuffer *audio_frames;
+  AVStream* audio_st;
+  AVCodecContext* audio_ctx;
+  MediaBuffer* audio_frames;
   int audio_sample_size;
   int audio_channel_size;
   int audio_frame_size;
@@ -69,9 +68,10 @@ struct VideoState {
 };
 
 class VideoDecoder {
-public:
+ public:
   VideoDecoder()
-      : video_buffer(VIDEO_BUFFER_SIZE), audio_buffer(AUDIO_BUFFER_SIZE) {
+      : video_buffer(VIDEO_BUFFER_SIZE), audio_buffer(AUDIO_BUFFER_SIZE)
+  {
     init();
   }
 
@@ -81,14 +81,14 @@ public:
   void init();
 
   // load video file
-  bool load(const char *url);
+  bool load(const char* url);
 
   // start the threads
   void start();
 
   // get the next video/audio frame
-  MediaFrame *getVideoFrame(double external_clock = -1);
-  uint8_t *getAudioFrame(double external_clock = -1);
+  MediaFrame* getVideoFrame(double external_clock = -1);
+  uint8_t* getAudioFrame(double external_clock = -1);
 
   void gotVideoFrame() { video_buffer.got(); }
   void gotAudioFrame() { audio_buffer.got(); }
@@ -97,7 +97,8 @@ public:
   bool isPaused() { return video_state.global_pause; }
   void loop(bool video_loop) { video_state.global_loop = video_loop; }
   bool isLooping() { return video_state.global_loop; }
-  void seek(double video_seek) {
+  void seek(double video_seek)
+  {
     stream_seek((int64_t)(video_seek * AV_TIME_BASE),
                 (int)(video_seek - video_state.master_clock));
   }
@@ -132,14 +133,14 @@ public:
   int width();
   int height();
   double fps();
-  int *lineSize();
+  int* lineSize();
 
-private:
+ private:
   // open & initialize video/audio stream components
-  bool stream_component_open(VideoState *vs, int stream_index);
+  bool stream_component_open(VideoState* vs, int stream_index);
 
   // thread functions for decoding and video
-  static void decodeThreadFunction(VideoState *vs);
+  static void decodeThreadFunction(VideoState* vs);
 
   // // attempt to guess proper timestamps for decoded video frames
   // int64_t guess_correct_pts(AVCodecContext *ctx, int64_t &reordered_pts,
@@ -160,21 +161,18 @@ private:
 
   VideoState video_state;
 
-  MediaFrame *video_output;
+  MediaFrame* video_output;
   MediaBuffer video_buffer;
 
-  MediaFrame *audio_output;
+  MediaFrame* audio_output;
   MediaBuffer audio_buffer;
 
   std::atomic<bool> delay_next_frame{false};
   std::atomic<bool> skip_next_frame{false};
 
   // ** Threads **
-  std::thread *decode_thread{nullptr};
+  std::thread* decode_thread{nullptr};
 };
+}  // namespace al
 
-// #else
-// #pragma message("al_ext video extension not built. Do not include this
-// header") #endif
-
-#endif // AL_VIDEODECODER_HPP
+#endif  // AL_VIDEODECODER_HPP

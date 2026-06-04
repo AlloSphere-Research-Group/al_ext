@@ -8,18 +8,25 @@
 #include <mutex>
 #include <vector>
 
+namespace al {
 struct MediaFrame {
   MediaFrame() {}
-  MediaFrame(uint8_t *data_ptr, size_t data_size, double data_pts)
-      : dataY(data_ptr, data_ptr + data_size), pts(data_pts) {}
-  MediaFrame(uint8_t *dataY_ptr, size_t dataY_size, uint8_t *dataU_ptr,
-             size_t dataU_size, uint8_t *dataV_ptr, size_t dataV_size,
+  MediaFrame(uint8_t* data_ptr, size_t data_size, double data_pts)
+      : dataY(data_ptr, data_ptr + data_size), pts(data_pts)
+  {
+  }
+  MediaFrame(uint8_t* dataY_ptr, size_t dataY_size, uint8_t* dataU_ptr,
+             size_t dataU_size, uint8_t* dataV_ptr, size_t dataV_size,
              double data_pts)
       : dataY(dataY_ptr, dataY_ptr + dataY_size),
         dataU(dataU_ptr, dataU_ptr + dataU_size),
-        dataV(dataV_ptr, dataV_ptr + dataV_size), pts(data_pts) {}
+        dataV(dataV_ptr, dataV_ptr + dataV_size),
+        pts(data_pts)
+  {
+  }
 
-  void clear() {
+  void clear()
+  {
     dataY.clear();
     dataU.clear();
     dataV.clear();
@@ -33,11 +40,14 @@ struct MediaFrame {
 };
 
 class MediaBuffer {
-public:
+ public:
   MediaBuffer(int numElements)
-      : frames(numElements), valid(numElements), readPos(0), writePos(0) {}
+      : frames(numElements), valid(numElements), readPos(0), writePos(0)
+  {
+  }
 
-  bool put(uint8_t *buffer, int &numBytes, double &pts) {
+  bool put(uint8_t* buffer, int& numBytes, double& pts)
+  {
     if (valid[writePos]) {
       // std::cerr << "Buffer pos already occupied: " << writePos << std::endl;
       return false;
@@ -53,8 +63,9 @@ public:
     return true;
   }
 
-  bool put(uint8_t *bufferY, int &numBytesY, uint8_t *bufferU, int &numBytesU,
-           uint8_t *bufferV, int &numBytesV, double &pts) {
+  bool put(uint8_t* bufferY, int& numBytesY, uint8_t* bufferU, int& numBytesU,
+           uint8_t* bufferV, int& numBytesV, double& pts)
+  {
     if (valid[writePos]) {
       // std::cerr << "Buffer pos already occupied: " << writePos << std::endl;
       return false;
@@ -71,7 +82,8 @@ public:
     return true;
   }
 
-  MediaFrame *get() {
+  MediaFrame* get()
+  {
     if (!valid[readPos]) {
       // std::cerr << " Buffer pos empty: " << readPos << std::endl;
       cond.notify_one();
@@ -82,13 +94,15 @@ public:
     return &frames[readPos];
   }
 
-  void got() {
+  void got()
+  {
     valid[readPos] = false;
     readPos = ++readPos % frames.size();
     cond.notify_one();
   }
 
-  void flush() {
+  void flush()
+  {
     // std::cout << "*** flushing : " << frames.size() << std::endl;
     for (int i = 0; i < frames.size(); ++i) {
       valid[i] = false;
@@ -108,12 +122,12 @@ public:
   std::mutex mutex;
   std::condition_variable cond;
 
-private:
+ private:
   std::vector<MediaFrame> frames;
   std::vector<std::atomic<bool>> valid;
 
   std::atomic<int> readPos;
   std::atomic<int> writePos;
 };
-
+}  // namespace al
 #endif
